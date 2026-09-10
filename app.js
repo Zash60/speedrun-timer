@@ -65,6 +65,21 @@
   function resetSpacing(octx) {
     try { octx.letterSpacing = '0px'; } catch { /* noop */ }
   }
+  // No-wobble layout: proportional fonts have digits of different widths, so a
+  // centered timer shifts every frame. Anchor the LEFT edge instead: fit the
+  // font to the widest possible reading and start every frame at that fixed x.
+  const WIDEST_SAMPLE = '88:88:88.888';
+  function fitFont(octx, fnt, startPx, maxW) {
+    let px = startPx;
+    const setF = (s) => { octx.font = fontCss(fnt, s); };
+    setF(px);
+    let guard = 0;
+    while (octx.measureText(WIDEST_SAMPLE).width > maxW && px > 10 && guard++ < 200) { px -= 4; setF(px); }
+    return px;
+  }
+  function stableLeft(octx, W) {
+    return (W - octx.measureText(WIDEST_SAMPLE).width) / 2;
+  }
   // Webfont readiness: redraw once the selected family arrives; try once per
   // spec so offline fallback never loops.
   const fontTried = new Set();
@@ -110,16 +125,13 @@
     ctx.clearRect(0, 0, W, H);
     if (bg) { ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H); }
     const text = T.frameToText(frame, state.fps, { showHours: ui.fmt.value });
-    // font scaled to always fit the width
+    // font fitted to the widest reading; every frame starts at the same x
     let px = parseInt(ui.fontSize.value, 10);
     const fnt = currentFont();
     applySpacing(ctx, fnt);
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const setFont = (s) => { ctx.font = fontCss(fnt, s); };
-    setFont(px);
-    const maxW = W * 0.92;
-    while (ctx.measureText(text).width > maxW && px > 10) { px -= 4; setFont(px); }
-    const cx = W / 2, cy = H / 2;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    px = fitFont(ctx, fnt, px, W * 0.92);
+    const cx = stableLeft(ctx, W), cy = H / 2;
     if (ui.stroke.checked) {
       ctx.lineWidth = Math.max(2, px / 18); ctx.strokeStyle = 'rgba(0,0,0,.85)';
       ctx.strokeText(text, cx, cy);
@@ -190,14 +202,13 @@
     let px = parseInt(ui.fontSize.value, 10);
     const fnt = currentFont();
     applySpacing(octx, fnt);
-    octx.textAlign = 'center'; octx.textBaseline = 'middle';
-    const setF = (s) => { octx.font = fontCss(fnt, s); };
-    setF(px);
-    while (octx.measureText(text).width > W * 0.92 && px > 10) { px -= 4; setF(px); }
-    if (ui.stroke.checked) { octx.lineWidth = Math.max(2, px / 18); octx.strokeStyle = 'rgba(0,0,0,.85)'; octx.strokeText(text, W / 2, H / 2); }
+    octx.textAlign = 'left'; octx.textBaseline = 'middle';
+    px = fitFont(octx, fnt, px, W * 0.92);
+    const lx = stableLeft(octx, W);
+    if (ui.stroke.checked) { octx.lineWidth = Math.max(2, px / 18); octx.strokeStyle = 'rgba(0,0,0,.85)'; octx.strokeText(text, lx, H / 2); }
     octx.fillStyle = ui.fg.value;
     octx.shadowColor = 'rgba(0,0,0,.55)'; octx.shadowBlur = px / 25;
-    octx.fillText(text, W / 2, H / 2);
+    octx.fillText(text, lx, H / 2);
     octx.shadowBlur = 0;
     resetSpacing(octx);
   }
