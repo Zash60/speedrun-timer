@@ -31,10 +31,9 @@ code {
 
 /* ---------- header (sólido; sombra = elevação do fixo) ---------- */
 .top {
-  position: sticky; top: 0; z-index: 20;
+  /* static: scrolls away with the page, never floats over content */
   background: var(--card);
   border-bottom: 1px solid var(--line);
-  box-shadow: 0 1px 8px rgba(0, 0, 0, .5);
 }
 .head {
   display: flex; justify-content: space-between; align-items: center;
