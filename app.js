@@ -59,15 +59,11 @@
   function fontCss(f, px) {
     return `${f.style ? f.style + ' ' : ''}${f.weight} ${px}px ${f.family}`;
   }
-  function applySpacing(octx, f) {
-    try { octx.letterSpacing = f.spacing; } catch { /* older browsers: ignore */ }
-  }
-  function resetSpacing(octx) {
-    try { octx.letterSpacing = '0px'; } catch { /* noop */ }
-  }
-  // No-wobble layout: proportional fonts have digits of different widths, so a
-  // centered timer shifts every frame. Anchor the LEFT edge instead: fit the
-  // font to the widest possible reading and start every frame at that fixed x.
+  // No-wobble CENTERED layout: proportional digits have different widths, so a
+  // plain centered string shifts every frame. Emulate tabular figures instead:
+  // every digit gets the widest digit cell, separators keep their own width,
+  // spacing is applied manually (works even where ctx.letterSpacing is missing).
+  // Constant total width + centered block = stable and centered.
   const WIDEST_SAMPLE = '88:88:88.888';
   function fitFont(octx, fnt, startPx, maxW) {
     let px = startPx;
@@ -77,8 +73,27 @@
     while (octx.measureText(WIDEST_SAMPLE).width > maxW && px > 10 && guard++ < 200) { px -= 4; setF(px); }
     return px;
   }
-  function stableLeft(octx, W) {
-    return (W - octx.measureText(WIDEST_SAMPLE).width) / 2;
+  function drawTimerText(octx, text, W, H, px, fnt) {
+    octx.font = fontCss(fnt, px);
+    octx.textAlign = 'left'; octx.textBaseline = 'middle';
+    const sp = parseFloat(fnt.spacing) || 0;
+    let digitW = 0;
+    for (let d = 0; d <= 9; d++) digitW = Math.max(digitW, octx.measureText(String(d)).width);
+    const adv = (ch) => (/\d/.test(ch) ? digitW : octx.measureText(ch).width) + sp;
+    let total = 0;
+    for (const ch of text) total += adv(ch);
+    total -= sp; // no trailing space
+    let x = (W - total) / 2;
+    const cy = H / 2;
+    if (ui.stroke.checked) {
+      octx.lineWidth = Math.max(2, px / 18); octx.strokeStyle = 'rgba(0,0,0,.85)';
+      let sx = x;
+      for (const ch of text) { octx.strokeText(ch, sx, cy); sx += adv(ch); }
+    }
+    octx.fillStyle = ui.fg.value;
+    octx.shadowColor = 'rgba(0,0,0,.55)'; octx.shadowBlur = px / 25;
+    for (const ch of text) { octx.fillText(ch, x, cy); x += adv(ch); }
+    octx.shadowBlur = 0;
   }
   // Webfont readiness: redraw once the selected family arrives; try once per
   // spec so offline fallback never loops.
@@ -125,23 +140,10 @@
     ctx.clearRect(0, 0, W, H);
     if (bg) { ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H); }
     const text = T.frameToText(frame, state.fps, { showHours: ui.fmt.value });
-    // font fitted to the widest reading; every frame starts at the same x
-    let px = parseInt(ui.fontSize.value, 10);
+    // tabular-emulated, centered, zero wobble
     const fnt = currentFont();
-    applySpacing(ctx, fnt);
-    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-    px = fitFont(ctx, fnt, px, W * 0.92);
-    const cx = stableLeft(ctx, W), cy = H / 2;
-    if (ui.stroke.checked) {
-      ctx.lineWidth = Math.max(2, px / 18); ctx.strokeStyle = 'rgba(0,0,0,.85)';
-      ctx.strokeText(text, cx, cy);
-    }
-    ctx.fillStyle = ui.fg.value;
-    // subtle shadow for legibility on chroma green
-    ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = px / 25;
-    ctx.fillText(text, cx, cy);
-    ctx.shadowBlur = 0;
-    resetSpacing(ctx);
+    const px = fitFont(ctx, fnt, parseInt(ui.fontSize.value, 10), W * 0.92);
+    drawTimerText(ctx, text, W, H, px, fnt);
     return text;
   }
 
@@ -199,18 +201,9 @@
     octx.clearRect(0, 0, W, H);
     if (bg) { octx.fillStyle = bg; octx.fillRect(0, 0, W, H); }
     const text = T.frameToText(frame, fps, { showHours: ui.fmt.value });
-    let px = parseInt(ui.fontSize.value, 10);
     const fnt = currentFont();
-    applySpacing(octx, fnt);
-    octx.textAlign = 'left'; octx.textBaseline = 'middle';
-    px = fitFont(octx, fnt, px, W * 0.92);
-    const lx = stableLeft(octx, W);
-    if (ui.stroke.checked) { octx.lineWidth = Math.max(2, px / 18); octx.strokeStyle = 'rgba(0,0,0,.85)'; octx.strokeText(text, lx, H / 2); }
-    octx.fillStyle = ui.fg.value;
-    octx.shadowColor = 'rgba(0,0,0,.55)'; octx.shadowBlur = px / 25;
-    octx.fillText(text, lx, H / 2);
-    octx.shadowBlur = 0;
-    resetSpacing(octx);
+    const px = fitFont(octx, fnt, parseInt(ui.fontSize.value, 10), W * 0.92);
+    drawTimerText(octx, text, W, H, px, fnt);
   }
 
   function downloadBlob(blob, fname) {
