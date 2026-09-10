@@ -121,7 +121,11 @@ input:focus-visible, select:focus-visible, button:focus-visible, summary:focus-v
 .hintline { font-size: 12.5px; color: var(--mut); margin: 8px 0 0; }
 #rtCanvas { touch-action: none; cursor: move; }
 .rt-transport { margin-top: 10px; }
-.rt-transport #rtTime { font-size: 13px; min-width: 0; white-space: nowrap; }
+.rt-transport #rtTime { font-size: 13px; flex: none; white-space: nowrap; }
+@media (max-width: 720px) {
+  .transport { flex-wrap: wrap; }
+  .transport input[type="range"] { flex: 1 1 100%; order: 10; }
+}
 input[type="file"] {
   font-size: 13px; padding: 9px 10px;
 }
