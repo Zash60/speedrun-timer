@@ -36,7 +36,8 @@
     durInfo: $('durInfo'), fpsInfo: $('fpsInfo'), fpsChip: $('fpsChip'),
     seek: $('seek'), timeLabel: $('timeLabel'), frameLabel: $('frameLabel'),
     frameStrip: $('frameStrip'), prog: $('prog'), status: $('status') || makeStatusSink(),
-    rtVideoFps: $('rtVideoFps'), rtOut: $('rtOut'),
+    rtVideoFps: $('rtVideoFps'), rtStart: $('rtStart'), rtEnd: $('rtEnd'),
+    rtOut: $('rtOut'),
     rtFile: $('rtFile'), rtVideo: $('rtVideo'), btnExportGameplay: $('btnExportGameplay'),
     rtPlay: $('rtPlay'), rtBack: $('rtBack'), rtFwd: $('rtFwd'), rtSeek: $('rtSeek'),
     rtTime: $('rtTime'), rtCanvas: $('rtCanvas'),
@@ -342,6 +343,12 @@
     let fps;
     try { fps = readConfig().fps; } catch (e) { flashExport('⚠️ ' + e.message); return; }
     const br = parseInt(ui.bitrate.value, 10) * 1e6;
+    let seg;
+    try {
+      seg = segment();
+      if (seg.frames <= 0) throw new Error('empty segment');
+    } catch (e) { flashExport('⚠️ ' + e.message); ui.btnExport.disabled = false; return; }
+    const segStartUs = Math.round(seg.start * 1e6);
     ui.btnExport.disabled = true; ui.prog.hidden = false; ui.prog.value = 0;
     pause();
     try {
@@ -383,12 +390,10 @@
         mp4.start();
         done();
       });
-      try { mp4.stop(); mp4.flush(); } catch { /* noop */ }
       if (!vSamples.length) throw new Error('no video samples');
       const W = vTrack.video.width - (vTrack.video.width % 2);
       const H = vTrack.video.height - (vTrack.video.height % 2);
-      const vidDur = info.duration / info.timescale;
-      const N = T.totalFrames(vidDur, fps);
+      const N = T.totalFrames(seg.seconds, fps);
       const { Muxer, ArrayBufferTarget, pickCodec } = window.MP4Export.lib;
       const codec = await pickCodec(W, H, br, fps);
       if (!codec) throw new Error('H.264 unavailable in this browser');
@@ -418,13 +423,14 @@
       const fnt = currentFont();
       const px = fitFont(octx, fnt, Math.max(10, Math.round(H * state.overlay.size / 100)), W * 0.92);
       const keyInt = Math.max(1, Math.round(fps * 2));
-      const tsOf = (i) => T.frameTimestampUs(i, fps);
+      const tsOf = (i) => segStartUs + T.frameTimestampUs(i, fps); // source (absolute)
+      const outTs = (i) => T.frameTimestampUs(i, fps); // muxer: first chunk must be 0
       let outIdx = 0, lastVf = null;
       const paint = (vf, i) => {
         octx.clearRect(0, 0, W, H);
         octx.drawImage(vf, 0, 0, W, H);
         drawTimerText(octx, T.frameToText(i, fps, { showHours: ui.fmt.value }), W, H, px, fnt, state.overlay);
-        const out = new VideoFrame(canvas, { timestamp: tsOf(i), duration: T.frameDurationUs(fps) });
+        const out = new VideoFrame(canvas, { timestamp: outTs(i), duration: T.frameDurationUs(fps) });
         enc.encode(out, { keyFrame: i % keyInt === 0 });
         out.close();
       };
@@ -477,18 +483,21 @@
       if (aTrack && aSamples.length) {
         const meta = { decoderConfig: { codec: aTrack.codec, sampleRate: aTrack.audio.sample_rate, numberOfChannels: aTrack.audio.channel_count } };
         for (const s of aSamples) {
+          const at = ctsUs(s, aTs) - segStartUs;
+          if (at < 0) continue; // before the segment
           muxer.addAudioChunk(new EncodedAudioChunk({
-            type: 'key', timestamp: ctsUs(s, aTs), duration: durUs(s, aTs), data: s.data,
+            type: 'key', timestamp: at, duration: durUs(s, aTs), data: s.data,
           }), meta);
         }
       }
       muxer.finalize();
+      try { mp4.stop(); mp4.flush(); } catch { /* noop */ }
       const blob = new Blob([muxTarget.buffer], { type: 'video/mp4' });
       const fname = `gameplay-timer_${fps}fps_${W}x${H}.mp4`;
       downloadBlob(blob, fname);
-      exportDone(fname, blob, fps, N, vidDur, W, H, 'gameplay H.264');
+      exportDone(fname, blob, fps, N, seg.seconds, W, H, 'gameplay H.264');
     } catch (e) {
-      ui.status.innerHTML = '❌ Gameplay export failed: ' + e.message;
+      ui.status.innerHTML = '❌ Gameplay export failed: ' + (e && e.stack ? String(e.stack).split('\n').slice(0, 3).join(' ') : e.message);
       ui.btnExport.disabled = false;
     }
   }
@@ -540,16 +549,37 @@
   });
   paintAllRanges();
   // ---- gameplay + timer (local file, nothing uploaded) ----
-  // The overlay timer follows whole-video progress 0..end.
+  // Start/End frames select the exported segment; preview freezes outside it.
+  function segment() {
+    const vf = parseFloat(String(ui.rtVideoFps.value).replace(',', '.'));
+    if (!isFinite(vf) || vf <= 0) throw new Error('video FPS must be > 0');
+    const s = Math.max(0, parseInt(ui.rtStart.value, 10) || 0);
+    const e = Math.max(0, parseInt(ui.rtEnd.value, 10) || 0);
+    if (e < s) throw new Error('end frame must be >= start frame');
+    return { frames: e - s, seconds: (e - s) / vf, start: s / vf, end: e / vf, fps: vf };
+  }
+  function refreshRetime() {
+    try {
+      const g = segment();
+      const tFmt = T.formatMs(Math.round(g.seconds * 1000), { showHours: 'auto' });
+      ui.rtOut.innerHTML = `<b>${g.frames}</b> frames · segment <b>${g.seconds.toFixed(3)}s</b> @${g.fps}fps · timer <b>${tFmt}</b>`;
+    } catch (err) {
+      ui.rtOut.textContent = err.message;
+    }
+  }
   function syncFromVideo() {
     const v = ui.rtVideo;
-    if (!v || !v.src || !isFinite(v.currentTime) || !isFinite(v.duration) || v.duration <= 0) return;
-    const frac = Math.max(0, Math.min(1, v.currentTime / v.duration));
-    const target = Math.round(frac * (state.frames - 1));
-    if (target !== state.cur) {
-      state.cur = target;
-      refreshFrame();
-    }
+    if (!v || !v.src || !isFinite(v.currentTime)) return;
+    try {
+      const g = segment();
+      let frac = (v.currentTime - g.start) / Math.max(1e-9, g.end - g.start);
+      frac = Math.max(0, Math.min(1, frac));
+      const target = Math.round(frac * (state.frames - 1));
+      if (target !== state.cur) {
+        state.cur = target;
+        refreshFrame();
+      }
+    } catch { /* invalid segment: leave timer alone */ }
     syncPlayerUi();
     drawComposite();
   }
@@ -623,13 +653,19 @@
   ui.rtVideo.addEventListener('seeked', syncFromVideo);
   ui.rtVideo.addEventListener('loadedmetadata', () => {
     const v = ui.rtVideo;
-    // Whole video: timer duration follows the file automatically.
+    // Whole video selected by default; timer duration follows the file.
     if (isFinite(v.duration) && v.duration > 0) {
+      const vf = parseFloat(String(ui.rtVideoFps.value).replace(',', '.')) || 60;
+      ui.rtStart.value = 0;
+      ui.rtEnd.value = Math.round(v.duration * vf);
       ui.duration.value = String(parseFloat(v.duration.toFixed(3)));
       ui.duration.dispatchEvent(new Event('input', { bubbles: true }));
     }
+    refreshRetime();
     syncPlayerUi(); drawComposite();
   });
+  ['rtVideoFps', 'rtStart', 'rtEnd']
+    .forEach(id => { $(id).addEventListener('input', refreshRetime); $(id).addEventListener('change', refreshRetime); });
   // Custom player
   ui.rtPlay.addEventListener('click', () => {
     const v = ui.rtVideo;
