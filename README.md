@@ -1,5 +1,7 @@
 # Speedrun Timer
 
+Live: https://zash60.github.io/speedrun-timer/
+
 Generates a countdown timer video for speedrun overlays and edits.
 Milliseconds are rounded per frame at the exact FPS you choose, and the
 video downloads as MP4 — no screen recording.
