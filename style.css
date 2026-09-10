@@ -32,7 +32,7 @@ code {
 /* ---------- header (sólido; sombra = elevação do fixo) ---------- */
 .top {
   position: sticky; top: 0; z-index: 20;
-  background: var(--bg);
+  background: var(--card);
   border-bottom: 1px solid var(--line);
   box-shadow: 0 1px 8px rgba(0, 0, 0, .5);
 }
@@ -50,6 +50,13 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .01em; }
 }
 .ver { font-size: 10px; color: var(--mut); opacity: .7; }
 .sub { color: var(--mut); margin: 3px 0 0; font-size: 13px; }
+.head-right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+.repo-link {
+  font-size: 13px; font-weight: 600; color: var(--mut); text-decoration: none;
+  border: 1px solid var(--line); border-radius: 6px; padding: 8px 14px;
+  background: var(--field); white-space: nowrap;
+}
+.repo-link:hover { color: var(--txt); border-color: var(--mut); }
 .fps-chip {
   font-family: var(--mono); font-size: 13px; white-space: nowrap;
   padding: 8px 14px; border-radius: 6px;
