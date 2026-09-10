@@ -1,0 +1,10 @@
+# logs
+*.log
+nohup.out
+# generated binaries (reproducible via the app)
+*.mp4
+*.png
+# local chromium profile for MCP
+.chromium-mcp/
+# playwright mcp snapshots
+.playwright-mcp/

@@ -1,0 +1,207 @@
+/* Speedrun Timer — flat dark instrument theme. No gradients, glow, blur, or emoji. */
+:root {
+  --bg: #0b0e13;
+  --card: #12161d;
+  --field: #0a0d12;
+  --line: #232c38;
+  --txt: #e6ebf2;
+  --mut: #8c99ab;
+  --acc: #35b26f;          /* acento único: exportação + seleção ativa */
+  --acc-ink: #04140a;      /* texto sobre o acento */
+  --track: #2a3442;        /* trilho de slider */
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html { color-scheme: dark; }
+body {
+  margin: 0;
+  font: 15px/1.55 var(--font);
+  color: var(--txt);
+  background: var(--bg);
+  min-height: 100vh;
+}
+.wrap { max-width: 1220px; margin: 0 auto; padding: 0 20px; }
+.mono { font-family: var(--mono); }
+code {
+  font-family: var(--mono); font-size: .85em;
+  background: var(--field); border: 1px solid var(--line);
+  padding: 1px 6px; border-radius: 6px;
+}
+
+/* ---------- header (sólido; sombra = elevação do fixo) ---------- */
+.top {
+  position: sticky; top: 0; z-index: 20;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 8px rgba(0, 0, 0, .5);
+}
+.head {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 14px; padding: 14px 20px; flex-wrap: wrap;
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.logo { display: grid; place-items: center; width: 40px; height: 40px; flex: none; }
+h1 { font-size: 20px; margin: 0; letter-spacing: .01em; }
+.badge {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .08em;
+  color: var(--mut); border: 1px solid var(--line);
+  padding: 3px 8px; border-radius: 6px; vertical-align: 3px; white-space: nowrap;
+}
+.sub { color: var(--mut); margin: 3px 0 0; font-size: 13px; }
+.fps-chip {
+  font-family: var(--mono); font-size: 13px; white-space: nowrap;
+  padding: 8px 14px; border-radius: 6px;
+  background: var(--card); border: 1px solid var(--line); color: var(--txt);
+}
+
+/* ---------- layout ---------- */
+.grid {
+  display: grid; grid-template-columns: 400px minmax(0, 1fr);
+  gap: 18px; padding: 20px; align-items: start;
+}
+@media (max-width: 960px) { .grid { grid-template-columns: 1fr; } }
+.card {
+  background: var(--card);
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 20px;
+}
+@media (min-width: 961px) {
+  .preview { position: sticky; top: 92px; }
+}
+
+/* ---------- passos e campos ---------- */
+.step { display: flex; align-items: center; gap: 10px; margin: 22px 0 6px; }
+.step:first-child { margin-top: 0; }
+.step .n {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: grid; place-items: center; flex: none;
+  font: 700 12.5px var(--font); color: var(--txt);
+  background: var(--track);
+}
+.step h2 {
+  font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--mut); margin: 0;
+}
+.field { display: block; margin: 12px 0 4px; font-size: 14px; }
+.field small { color: var(--mut); font-weight: 400; }
+.field .val { float: right; font-family: var(--mono); color: var(--txt); font-size: 13px; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 480px) { .row { grid-template-columns: 1fr; } }
+.row.align-end { align-items: end; }
+
+input[type="text"], input[type="number"], input:not([type]), select {
+  width: 100%; margin-top: 7px;
+  background: var(--field); border: 1px solid var(--line);
+  color: var(--txt); border-radius: 6px; padding: 11px 12px; font-size: 15px;
+}
+input:focus-visible, select:focus-visible, button:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--txt); outline-offset: 2px;
+}
+input[type="color"] {
+  width: 100%; height: 44px; margin-top: 7px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 6px;
+  background: var(--field); padding: 4px;
+}
+
+/* sliders: trilho neutro, preenchimento = valor (único uso funcional do acento) */
+input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 26px; background: transparent; margin-top: 7px; cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px; border-radius: 6px;
+  background: linear-gradient(90deg, var(--acc) var(--fill, 30%), var(--track) var(--fill, 30%));
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 18px; height: 18px; border-radius: 50%; margin-top: -6px;
+  background: var(--txt); border: none;
+}
+input[type="range"]::-moz-range-track {
+  height: 6px; border-radius: 6px; background: var(--track);
+}
+input[type="range"]::-moz-range-progress { height: 6px; border-radius: 6px; background: var(--acc); }
+input[type="range"]::-moz-range-thumb {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--txt); border: none;
+}
+
+/* presets: seleção ativa = acento */
+.presets { display: flex; flex-wrap: wrap; gap: 7px; margin: 8px 0 4px; }
+.presets button {
+  background: var(--field); border: 1px solid var(--line); color: var(--txt);
+  border-radius: 6px; padding: 7px 12px; cursor: pointer; font-size: 13px; font-weight: 600;
+}
+.presets button:hover { border-color: var(--mut); }
+.presets button.on, .presets button:active {
+  background: var(--acc); border-color: var(--acc); color: var(--acc-ink);
+}
+
+.info {
+  background: var(--field);
+  border: 1px solid var(--line); border-radius: 6px;
+  padding: 9px 12px; font-size: 13px; color: var(--mut); margin: 8px 0;
+}
+.info b { color: var(--txt); }
+
+.chk {
+  display: flex; align-items: center; gap: 9px; margin: 0 0 4px;
+  background: var(--field); border: 1px solid var(--line);
+  padding: 12px; border-radius: 6px; cursor: pointer; font-size: 14px;
+}
+.chk input { width: 19px; height: 19px; accent-color: var(--acc); margin: 0; }
+
+/* CTA: o momento do acento */
+button.big {
+  width: 100%; margin-top: 8px; cursor: pointer;
+  background: var(--acc);
+  border: 0; color: var(--acc-ink); font-weight: 800; font-size: 17px;
+  border-radius: 10px; padding: 15px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+button.big:hover:not(:disabled) { filter: brightness(1.08); }
+button.big:disabled { opacity: .55; cursor: wait; }
+progress { width: 100%; height: 10px; margin-top: 12px; appearance: none; -webkit-appearance: none; }
+progress::-webkit-progress-bar { background: var(--field); border: 1px solid var(--line); border-radius: 6px; }
+progress::-webkit-progress-value { background: var(--acc); border-radius: 6px; }
+progress::-moz-progress-bar { background: var(--acc); border-radius: 6px; }
+
+/* ---------- preview ---------- */
+.pv-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.pv-head h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--mut); margin: 0; }
+.pill {
+  font-size: 12px; background: var(--field); border: 1px solid var(--line);
+  padding: 5px 10px; border-radius: 6px; color: var(--txt); white-space: nowrap;
+}
+.canvasBox {
+  background: repeating-conic-gradient(#161d27 0 25%, #10151d 0 50%) 0 0/26px 26px;
+  border: 1px solid var(--line); border-radius: 10px;
+  overflow: hidden; display: flex; justify-content: center;
+}
+canvas { width: 100%; height: auto; display: block; max-height: 54vh; object-fit: contain; }
+.transport {
+  display: flex; gap: 9px; align-items: center; margin-top: 12px;
+  background: var(--field); border: 1px solid var(--line);
+  border-radius: 10px; padding: 10px 12px;
+}
+.transport button {
+  background: var(--card); border: 1px solid var(--line); color: var(--txt);
+  border-radius: 6px; font-size: 15px; padding: 9px 15px; cursor: pointer; flex: none;
+}
+.transport button:hover { border-color: var(--mut); }
+.transport input[type="range"] { margin-top: 0; flex: 1; min-width: 0; }
+#timeLabel { font-size: 21px; font-weight: 700; min-width: 132px; text-align: right; color: var(--txt); flex: none; }
+@media (max-width: 480px) { #timeLabel { font-size: 16px; min-width: 104px; } }
+.frames {
+  margin-top: 10px; font-size: 12px; color: var(--mut);
+  word-break: break-all; background: var(--field);
+  border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px;
+}
+
+input[type="range"] { --fill: 30%; }
+#seek { --fill: 0%; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
