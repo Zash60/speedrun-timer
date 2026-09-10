@@ -161,18 +161,22 @@
     catch { return { dur: state.dur, fps: state.fps, W: parseInt(ui.w.value, 10) || 1920, H: parseInt(ui.h.value, 10) || 1080 }; }
   }
 
+  // Light per-frame update (playback/video): static labels untouched.
+  function refreshFrame() {
+    state.cur = Math.max(0, Math.min(state.cur, state.frames - 1));
+    ui.seek.value = state.cur;
+    const txt = drawFrame(state.cur);
+    ui.timeLabel.textContent = txt;
+    ui.frameLabel.textContent = `frame ${state.cur}/${state.frames - 1}`;
+    drawComposite();
+  }
   function refresh() {
     try {
       const { dur, fps } = readConfig();
       state.dur = dur; state.fps = fps;
       state.frames = T.totalFrames(dur, fps);
     } catch (e) { ui.status.innerHTML = '⚠️ ' + e.message; return; }
-    state.cur = Math.min(state.cur, state.frames - 1);
     ui.seek.max = state.frames - 1;
-    ui.seek.value = state.cur;
-    const txt = drawFrame(state.cur);
-    ui.timeLabel.textContent = txt;
-    ui.frameLabel.textContent = `frame ${state.cur}/${state.frames - 1}`;
     const fMs = (1000 / state.fps);
     ui.fpsChip.textContent = `${state.fps} fps · frame = ${fMs.toFixed(3)} ms`;
     ui.durInfo.innerHTML = `<b>${state.frames}</b> frames · <b>${state.dur.toFixed(3)}s</b> video at <b>${state.fps} fps</b>`;
@@ -185,8 +189,8 @@
     const last = T.frameToText(state.frames - 1, state.fps, { showHours: ui.fmt.value });
     ui.frameStrip.textContent = `frames: ${head.join('  ')}  …  ${last}`;
     ensureFontDrawn();
-    drawComposite();
     if (typeof paintAllRanges === 'function') paintAllRanges();
+    refreshFrame();
   }
 
   // ---- transport (realtime preview) ----
@@ -197,7 +201,7 @@
     const step = 1 / state.fps;
     let adv = false;
     while (state.acc >= step) { state.acc -= step; state.cur++; adv = true; if (state.cur >= state.frames) { state.cur = state.frames - 1; pause(); break; } }
-    if (adv) refresh();
+    if (adv) refreshFrame();
     state.raf = requestAnimationFrame(loop);
   }
   function play() { if (state.cur >= state.frames - 1) state.cur = 0; state.playing = true; state.last = 0; state.acc = 0; ui.btnPlay.textContent = '⏸'; state.raf = requestAnimationFrame(loop); }
@@ -363,6 +367,9 @@
   const rtCv = () => ui.rtCanvas;
   const rtCtx = () => ui.rtCanvas.getContext('2d');
   function drawComposite() {
+    const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
+    if (now - (drawComposite._t || 0) < 40) return; // ~25fps cap: phones stay smooth
+    drawComposite._t = now;
     const v = ui.rtVideo;
     if (!v || !v.videoWidth) return;
     const c = rtCv();
@@ -397,7 +404,7 @@
       const target = Math.round(frac * (state.frames - 1));
       if (target !== state.cur) {
         state.cur = target;
-        refresh();
+        refreshFrame();
       }
       syncPlayerUi();
       drawComposite();
@@ -422,9 +429,9 @@
   $('resPresets').addEventListener('click', (e) => {
     if (e.target.dataset.w) { ui.w.value = e.target.dataset.w; ui.h.value = e.target.dataset.h; pause(); refresh(); }
   });
-  ui.seek.addEventListener('input', () => { pause(); state.cur = parseInt(ui.seek.value, 10) || 0; refresh(); });
+  ui.seek.addEventListener('input', () => { pause(); state.cur = parseInt(ui.seek.value, 10) || 0; refreshFrame(); });
   ui.btnPlay.addEventListener('click', () => state.playing ? pause() : play());
-  ui.btnRestart.addEventListener('click', () => { pause(); state.cur = 0; refresh(); });
+  ui.btnRestart.addEventListener('click', () => { pause(); state.cur = 0; refreshFrame(); });
   ui.btnExport.addEventListener('click', exportVideo);
   ['rtVideoFps', 'rtStart', 'rtEnd']
     .forEach(id => { $(id).addEventListener('input', refreshRetime); $(id).addEventListener('change', refreshRetime); });
@@ -436,12 +443,17 @@
     }
   });
   ui.btnExportSegment.addEventListener('click', () => {
-    const t = parseFloat(ui.btnUseRetime.dataset.t || '0');
-    if (t > 0) {
+    // Full-video timer: duration follows the whole loaded video (segment via Use + Export).
+    const v = ui.rtVideo;
+    if (v && v.src && isFinite(v.duration) && v.duration > 0) {
+      ui.duration.value = String(parseFloat(v.duration.toFixed(3)));
+    } else {
+      const t = parseFloat(ui.btnUseRetime.dataset.t || '0');
+      if (!(t > 0)) return;
       ui.duration.value = String(parseFloat(t.toFixed(6)));
-      ui.duration.dispatchEvent(new Event('input', { bubbles: true }));
-      exportVideo();
     }
+    ui.duration.dispatchEvent(new Event('input', { bubbles: true }));
+    exportVideo();
   });
   ui.rtFile.addEventListener('change', () => {
     const f = ui.rtFile.files && ui.rtFile.files[0];
