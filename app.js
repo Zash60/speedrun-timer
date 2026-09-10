@@ -36,6 +36,9 @@
     durInfo: $('durInfo'), fpsInfo: $('fpsInfo'), fpsChip: $('fpsChip'),
     seek: $('seek'), timeLabel: $('timeLabel'), frameLabel: $('frameLabel'),
     frameStrip: $('frameStrip'), prog: $('prog'), status: $('status') || makeStatusSink(),
+    rtVideoFps: $('rtVideoFps'), rtConsole: $('rtConsole'), rtStart: $('rtStart'),
+    rtEnd: $('rtEnd'), rtConsoleCustom: $('rtConsoleCustom'),
+    rtCustomWrap: $('rtCustomWrap'), rtOut: $('rtOut'), btnUseRetime: $('btnUseRetime'),
     btnPlay: $('btnPlay'), btnRestart: $('btnRestart'),
     btnExport: $('btnExport'), btnPng: $('btnPng'),
   };
@@ -323,6 +326,33 @@
     el.addEventListener('change', () => paintRange(el));
   });
   paintAllRanges();
+  // ---- retime (somewes-style video -> console conversion) ----
+  function consoleFps() {
+    if (ui.rtConsole.value === 'custom') {
+      const v = parseFloat(String(ui.rtConsoleCustom.value).replace(',', '.'));
+      if (!isFinite(v) || v <= 0) throw new Error('console FPS must be > 0');
+      return v;
+    }
+    return parseFloat(ui.rtConsole.value);
+  }
+  function refreshRetime() {
+    ui.rtCustomWrap.hidden = ui.rtConsole.value !== 'custom';
+    try {
+      const vf = parseFloat(ui.rtVideoFps.value);
+      const cf = consoleFps();
+      const s = parseInt(ui.rtStart.value, 10) || 0;
+      const e = parseInt(ui.rtEnd.value, 10) || 0;
+      if (e < s) throw new Error('end frame must be >= start frame');
+      const r = T.retime(s, e, vf, cf);
+      const tFmt = T.formatMs(Math.round(r.consoleTime * 1000), { showHours: 'auto' });
+      ui.rtOut.innerHTML = `<b>${r.videoFrames}</b> frames · video <b>${r.videoTime.toFixed(3)}s</b> @${vf}fps → <b>${r.consoleFrames}</b> console frames · <b>${r.consoleTime.toFixed(3)}s</b> @${cf}fps · retimed <b>${tFmt}</b>`;
+      ui.btnUseRetime.disabled = false;
+      ui.btnUseRetime.dataset.t = String(r.consoleTime);
+    } catch (err) {
+      ui.rtOut.textContent = err.message;
+      ui.btnUseRetime.disabled = true;
+    }
+  }
   // Safari fires change-only on <select>: listen to both (refresh is idempotent).
   function onControl() { pause(); refresh(); }
   ['duration', 'fps', 'w', 'h', 'bg', 'bgCustom', 'fg', 'fontSize', 'font', 'fmt', 'stroke', 'bitrate']
@@ -342,6 +372,15 @@
   ui.btnPlay.addEventListener('click', () => state.playing ? pause() : play());
   ui.btnRestart.addEventListener('click', () => { pause(); state.cur = 0; refresh(); });
   ui.btnExport.addEventListener('click', exportVideo);
+  ['rtVideoFps', 'rtConsole', 'rtStart', 'rtEnd', 'rtConsoleCustom']
+    .forEach(id => { $(id).addEventListener('input', refreshRetime); $(id).addEventListener('change', refreshRetime); });
+  ui.btnUseRetime.addEventListener('click', () => {
+    const t = parseFloat(ui.btnUseRetime.dataset.t || '0');
+    if (t > 0) {
+      ui.duration.value = String(parseFloat(t.toFixed(6)));
+      ui.duration.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  });
   if (ui.btnPng) ui.btnPng.addEventListener('click', () => {
     drawFrame(state.cur);
     const a = document.createElement('a');
@@ -351,4 +390,5 @@
   });
 
   refresh();
+  refreshRetime();
 })();

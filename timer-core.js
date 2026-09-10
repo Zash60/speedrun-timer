@@ -84,5 +84,18 @@
     return Math.round(1e6 / fps);
   }
 
-  return { totalFrames, frameToMs, formatMs, frameToText, parseDuration, frameDurationMs, frameTimestampUs, frameDurationUs };
+  // Retime (somewes-style): video frames at videoFps -> console frames/time.
+  // consoleFrames = floor(videoTime / consoleFrameDuration).
+  function retime(startFrame, endFrame, videoFps, consoleFps) {
+    if (!(videoFps > 0)) throw new Error('video FPS must be > 0');
+    if (!(consoleFps > 0)) throw new Error('console FPS must be > 0');
+    const vf = Math.max(0, Math.floor(endFrame) - Math.floor(startFrame));
+    const videoTime = vf / videoFps;
+    const cfd = 1 / consoleFps;
+    const cfFloat = videoTime / cfd;
+    const cf = Math.floor(cfFloat + 1e-9);
+    return { videoFrames: vf, videoTime, consoleFramesFloat: cfFloat, consoleFrames: cf, consoleTime: cf * cfd };
+  }
+
+  return { totalFrames, frameToMs, formatMs, frameToText, parseDuration, frameDurationMs, frameTimestampUs, frameDurationUs, retime };
 });
