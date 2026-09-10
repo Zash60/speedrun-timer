@@ -39,11 +39,14 @@
     rtVideoFps: $('rtVideoFps'), rtStart: $('rtStart'),
     rtEnd: $('rtEnd'), rtOut: $('rtOut'), btnUseRetime: $('btnUseRetime'),
     rtFile: $('rtFile'), rtVideo: $('rtVideo'), btnExportSegment: $('btnExportSegment'),
+    rtPlay: $('rtPlay'), rtBack: $('rtBack'), rtFwd: $('rtFwd'), rtSeek: $('rtSeek'),
+    rtTime: $('rtTime'), rtCanvas: $('rtCanvas'),
+    rtOverlaySize: $('rtOverlaySize'), rtOverlaySizeVal: $('rtOverlaySizeVal'),
     btnPlay: $('btnPlay'), btnRestart: $('btnRestart'),
     btnExport: $('btnExport'), btnPng: $('btnPng'),
   };
 
-  let state = { dur: 60, fps: 60, frames: 3600, cur: 0, playing: false, raf: 0, last: 0, acc: 0 };
+  let state = { dur: 60, fps: 60, frames: 3600, cur: 0, playing: false, raf: 0, last: 0, acc: 0, overlay: { x: 0.5, y: 0.85, size: 12 } };
 
   // Font styles: webfonts (Google Fonts CDN, nothing bundled in the repo) first,
   // system stacks as offline fallback. document.fonts.load guarantees the
@@ -76,7 +79,7 @@
     while (octx.measureText(WIDEST_SAMPLE).width > maxW && px > 10 && guard++ < 200) { px -= 4; setF(px); }
     return px;
   }
-  function drawTimerText(octx, text, W, H, px, fnt) {
+  function drawTimerText(octx, text, W, H, px, fnt, pos) {
     octx.font = fontCss(fnt, px);
     octx.textAlign = 'left'; octx.textBaseline = 'middle';
     const sp = parseFloat(fnt.spacing) || 0;
@@ -86,8 +89,11 @@
     let total = 0;
     for (const ch of text) total += adv(ch);
     total -= sp; // no trailing space
-    let x = (W - total) / 2;
-    const cy = H / 2;
+    let x = (W - total) / 2, cy = H / 2;
+    if (pos) { // overlay position (relative 0..1), clamped on-canvas
+      x = Math.max(0, Math.min(W - total, pos.x * W - total / 2));
+      cy = pos.y * H;
+    }
     if (ui.stroke.checked) {
       octx.lineWidth = Math.max(2, px / 18); octx.strokeStyle = 'rgba(0,0,0,.85)';
       let sx = x;
@@ -179,6 +185,7 @@
     const last = T.frameToText(state.frames - 1, state.fps, { showHours: ui.fmt.value });
     ui.frameStrip.textContent = `frames: ${head.join('  ')}  …  ${last}`;
     ensureFontDrawn();
+    drawComposite();
     if (typeof paintAllRanges === 'function') paintAllRanges();
   }
 
@@ -351,8 +358,35 @@
     }
   }
   // Timer follows the loaded video: frozen at 0 before the segment,
-  // frozen at the end after it.
+  // frozen at the end after it. Composite canvas shows the timer ON video.
   let rtRaf = 0;
+  const rtCv = () => ui.rtCanvas;
+  const rtCtx = () => ui.rtCanvas.getContext('2d');
+  function drawComposite() {
+    const v = ui.rtVideo;
+    if (!v || !v.videoWidth) return;
+    const c = rtCv();
+    if (c.width !== v.videoWidth || c.height !== v.videoHeight) {
+      c.width = v.videoWidth; c.height = v.videoHeight;
+    }
+    const W = c.width, H = c.height;
+    const x = rtCtx();
+    x.clearRect(0, 0, W, H);
+    try { x.drawImage(v, 0, 0, W, H); } catch { return; }
+    const text = T.frameToText(state.cur, state.fps, { showHours: ui.fmt.value });
+    const fnt = currentFont();
+    const px = fitFont(x, fnt, Math.max(10, Math.round(H * state.overlay.size / 100)), W * 0.92);
+    drawTimerText(x, text, W, H, px, fnt, state.overlay);
+  }
+  function syncPlayerUi() {
+    const v = ui.rtVideo;
+    if (!v || !v.src || !isFinite(v.duration)) return;
+    ui.rtSeek.max = v.duration;
+    if (document.activeElement !== ui.rtSeek) ui.rtSeek.value = v.currentTime;
+    const vf = parseFloat(String(ui.rtVideoFps.value).replace(',', '.')) || 60;
+    ui.rtTime.textContent = `${v.currentTime.toFixed(3)}s · f${Math.round(v.currentTime * vf)}`;
+    ui.rtPlay.textContent = v.paused ? '▶' : '⏸';
+  }
   function syncFromVideo() {
     const v = ui.rtVideo;
     if (!v || !v.src || !isFinite(v.currentTime)) return;
@@ -365,6 +399,8 @@
         state.cur = target;
         refresh();
       }
+      syncPlayerUi();
+      drawComposite();
     } catch { /* invalid segment: leave timer alone */ }
   }
   function rtLoop() {
@@ -417,6 +453,46 @@
   ui.rtVideo.addEventListener('play', () => { cancelAnimationFrame(rtRaf); rtLoop(); });
   ui.rtVideo.addEventListener('pause', () => { cancelAnimationFrame(rtRaf); syncFromVideo(); });
   ui.rtVideo.addEventListener('seeked', syncFromVideo);
+  ui.rtVideo.addEventListener('loadedmetadata', () => { syncPlayerUi(); drawComposite(); });
+  // Custom player
+  ui.rtPlay.addEventListener('click', () => {
+    const v = ui.rtVideo;
+    if (!v.src) return;
+    if (v.paused) v.play().catch(() => {});
+    else v.pause();
+  });
+  function stepVideo(d) {
+    const v = ui.rtVideo;
+    if (!v.src || !isFinite(v.duration)) return;
+    const vf = parseFloat(String(ui.rtVideoFps.value).replace(',', '.')) || 60;
+    v.pause();
+    v.currentTime = Math.max(0, Math.min(v.duration, v.currentTime + (d / vf)));
+  }
+  ui.rtBack.addEventListener('click', () => stepVideo(-1));
+  ui.rtFwd.addEventListener('click', () => stepVideo(1));
+  ui.rtSeek.addEventListener('input', () => {
+    const v = ui.rtVideo;
+    if (v.src && isFinite(v.duration)) v.currentTime = parseFloat(ui.rtSeek.value) || 0;
+  });
+  // Draggable overlay
+  let ovDrag = false;
+  function moveOverlay(e) {
+    const r = ui.rtCanvas.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    state.overlay.x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+    state.overlay.y = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
+    drawComposite();
+  }
+  ui.rtCanvas.addEventListener('pointerdown', (e) => { ovDrag = true; try { ui.rtCanvas.setPointerCapture(e.pointerId); } catch {} moveOverlay(e); });
+  ui.rtCanvas.addEventListener('pointermove', (e) => { if (ovDrag) moveOverlay(e); });
+  ui.rtCanvas.addEventListener('pointerup', () => { ovDrag = false; });
+  ui.rtCanvas.addEventListener('pointercancel', () => { ovDrag = false; });
+  ui.rtOverlaySize.addEventListener('input', () => {
+    state.overlay.size = parseFloat(ui.rtOverlaySize.value) || 12;
+    ui.rtOverlaySizeVal.textContent = ui.rtOverlaySize.value + '%';
+    drawComposite();
+  });
+  ui.rtOverlaySize.addEventListener('change', () => drawComposite());
   if (ui.btnPng) ui.btnPng.addEventListener('click', () => {
     drawFrame(state.cur);
     const a = document.createElement('a');
