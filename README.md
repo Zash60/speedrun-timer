@@ -30,6 +30,13 @@ Everything runs locally in the browser. No uploads, no accounts.
 4. Press **Download MP4 video**. Encoding is offline, so you can minimize
    the tab while it works — just don't close it.
 
+## Gameplay video with burned-in timer
+
+Load a gameplay file in step 3: the overlay timer follows it (drag to move,
+size slider below), the timer duration auto-matches the file, and **Download
+video with timer** re-encodes the whole video with the timer burned in at
+your position. H.264/VP9 gameplay, original audio kept.
+
 ## Notes
 
 - The video always ends on the round number: frame count is
