@@ -13,7 +13,8 @@
   --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
 }
 * { box-sizing: border-box; }
-html { color-scheme: dark; }
+html { color-scheme: dark; overflow-x: clip; }
+body { overflow-x: clip; }
 body {
   margin: 0;
   font: 15px/1.55 var(--font);
@@ -23,6 +24,7 @@ body {
 }
 .wrap { max-width: 1220px; margin: 0 auto; padding: 0 20px; }
 .mono { font-family: var(--mono); }
+canvas, video { max-width: 100%; }
 code {
   font-family: var(--mono); font-size: .85em;
   background: var(--field); border: 1px solid var(--line);
@@ -67,6 +69,7 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .01em; }
   display: grid; grid-template-columns: 400px minmax(0, 1fr);
   gap: 18px; padding: 20px; align-items: start;
 }
+.grid > section { min-width: 0; }
 @media (max-width: 960px) { .grid { grid-template-columns: 1fr; } }
 .card {
   background: var(--card);
