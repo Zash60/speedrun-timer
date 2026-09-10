@@ -2,7 +2,7 @@
 // Because it is offline (absolute timestamps, no wall clock), the export
 // KEEPS GOING with the tab in the background / screen off — just don't
 // close the tab. No pacing timers: the loop is promise-driven.
-import { Muxer, ArrayBufferTarget } from './mp4-muxer.mjs?v=20260910h';
+import { Muxer, ArrayBufferTarget } from './mp4-muxer.mjs?v=20260910i';
 
 const AVC_CODECS = [
   'avc1.640034', // High L5.2 (4K ok)
