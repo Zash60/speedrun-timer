@@ -42,6 +42,29 @@
 
   let state = { dur: 60, fps: 60, frames: 3600, cur: 0, playing: false, raf: 0, last: 0, acc: 0 };
 
+  // Font styles: family alone is not enough on Android (missing families all
+  // fall back to the same Roboto), so weight / slant / spacing carry the look.
+  const FONT_STYLES = {
+    mono:   { family: "'JetBrains Mono','Cascadia Mono',Consolas,'Roboto Mono',monospace", weight: 700, style: '', spacing: '0px' },
+    sans:   { family: "Arial,Helvetica,Roboto,sans-serif", weight: 700, style: '', spacing: '0px' },
+    serif:  { family: "Georgia,'Noto Serif','Times New Roman',serif", weight: 700, style: '', spacing: '0px' },
+    black:  { family: "Arial,Helvetica,Roboto,sans-serif", weight: 900, style: '', spacing: '0px' },
+    italic: { family: "Arial,Helvetica,Roboto,sans-serif", weight: 700, style: 'italic', spacing: '0px' },
+    spaced: { family: "'JetBrains Mono','Cascadia Mono',Consolas,'Roboto Mono',monospace", weight: 700, style: '', spacing: '8px' },
+  };
+  function currentFont() {
+    return FONT_STYLES[ui.font.value] || FONT_STYLES.mono;
+  }
+  function fontCss(f, px) {
+    return `${f.style ? f.style + ' ' : ''}${f.weight} ${px}px ${f.family}`;
+  }
+  function applySpacing(octx, f) {
+    try { octx.letterSpacing = f.spacing; } catch { /* older browsers: ignore */ }
+  }
+  function resetSpacing(octx) {
+    try { octx.letterSpacing = '0px'; } catch { /* noop */ }
+  }
+
   function bgColor() {
     if (ui.bg.value === 'custom') return ui.bgCustom.value;
     if (ui.bg.value === 'transparent') return null;
@@ -66,8 +89,10 @@
     const text = T.frameToText(frame, state.fps, { showHours: ui.fmt.value });
     // font scaled to always fit the width
     let px = parseInt(ui.fontSize.value, 10);
+    const fnt = currentFont();
+    applySpacing(ctx, fnt);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const setFont = (s) => { ctx.font = `700 ${s}px ${ui.font.value}`; };
+    const setFont = (s) => { ctx.font = fontCss(fnt, s); };
     setFont(px);
     const maxW = W * 0.92;
     while (ctx.measureText(text).width > maxW && px > 10) { px -= 4; setFont(px); }
@@ -81,6 +106,7 @@
     ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = px / 25;
     ctx.fillText(text, cx, cy);
     ctx.shadowBlur = 0;
+    resetSpacing(ctx);
     return text;
   }
 
@@ -138,8 +164,10 @@
     if (bg) { octx.fillStyle = bg; octx.fillRect(0, 0, W, H); }
     const text = T.frameToText(frame, fps, { showHours: ui.fmt.value });
     let px = parseInt(ui.fontSize.value, 10);
+    const fnt = currentFont();
+    applySpacing(octx, fnt);
     octx.textAlign = 'center'; octx.textBaseline = 'middle';
-    const setF = (s) => { octx.font = `700 ${s}px ${ui.font.value}`; };
+    const setF = (s) => { octx.font = fontCss(fnt, s); };
     setF(px);
     while (octx.measureText(text).width > W * 0.92 && px > 10) { px -= 4; setF(px); }
     if (ui.stroke.checked) { octx.lineWidth = Math.max(2, px / 18); octx.strokeStyle = 'rgba(0,0,0,.85)'; octx.strokeText(text, W / 2, H / 2); }
@@ -147,6 +175,7 @@
     octx.shadowColor = 'rgba(0,0,0,.55)'; octx.shadowBlur = px / 25;
     octx.fillText(text, W / 2, H / 2);
     octx.shadowBlur = 0;
+    resetSpacing(octx);
   }
 
   function downloadBlob(blob, fname) {
