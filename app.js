@@ -260,10 +260,15 @@
     el.style.setProperty('--fill', Math.max(0, Math.min(100, p)) + '%');
   };
   const paintAllRanges = () => document.querySelectorAll('input[type=range]').forEach(paintRange);
-  document.querySelectorAll('input[type=range]').forEach(el => el.addEventListener('input', () => paintRange(el)));
+  document.querySelectorAll('input[type=range]').forEach(el => {
+    el.addEventListener('input', () => paintRange(el));
+    el.addEventListener('change', () => paintRange(el));
+  });
   paintAllRanges();
+  // Safari fires change-only on <select>: listen to both (refresh is idempotent).
+  function onControl() { pause(); refresh(); }
   ['duration', 'fps', 'w', 'h', 'bg', 'bgCustom', 'fg', 'fontSize', 'font', 'fmt', 'stroke', 'bitrate']
-    .forEach(id => $(id).addEventListener('input', () => { pause(); refresh(); }));
+    .forEach(id => { $(id).addEventListener('input', onControl); $(id).addEventListener('change', onControl); });
   $('durPresets').addEventListener('click', (e) => { if (e.target.dataset.d) { ui.duration.value = e.target.dataset.d; pause(); refresh(); } });
   $('fpsPresets').addEventListener('click', (e) => {
     if (e.target.dataset.f) {
