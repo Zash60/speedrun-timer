@@ -100,11 +100,28 @@ input[type="text"], input[type="number"], input:not([type]), select {
 input:focus-visible, select:focus-visible, button:focus-visible, summary:focus-visible {
   outline: 2px solid var(--txt); outline-offset: 2px;
 }
+/* collapsible retime (keeps mobile short) */
+.collapse { margin-top: 2px; }
+.collapse > summary {
+  cursor: pointer; font-size: 13px; color: var(--mut); font-weight: 600;
+  padding: 6px 2px; list-style: none;
+}
+.collapse > summary::-webkit-details-marker { display: none; }
+.collapse > summary::before { content: '▸ '; }
+.collapse[open] > summary::before { content: '▾ '; }
+.collapse > summary:hover { color: var(--txt); }
+.collapse > summary .mut { font-weight: 400; opacity: .7; }
+.collapse-body { padding-top: 4px; }
+.hintline { font-size: 12.5px; color: var(--mut); margin: 8px 0 0; }
+#rtCanvas { touch-action: none; cursor: move; }
+.rt-transport { margin-top: 10px; }
+.rt-transport #rtTime { font-size: 13px; min-width: 0; white-space: nowrap; }
 input[type="file"] {
   font-size: 13px; padding: 9px 10px;
 }
 video#rtVideo {
-  width: 100%; border: 1px solid var(--line); border-radius: 6px;
+  width: 100%; max-height: 46vh; object-fit: contain;
+  border: 1px solid var(--line); border-radius: 6px;
   background: #000; margin-top: 4px;
 }
 video#rtVideo:not([src]) { display: none; }
@@ -220,4 +237,21 @@ input[type="range"] { --fill: 30%; }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
+}
+
+/* compact mobile */
+@media (max-width: 480px) {
+  .wrap { padding: 0 12px; }
+  .grid { padding: 12px; gap: 12px; }
+  .card { padding: 14px; }
+  h1 { font-size: 17px; }
+  .logo { width: 34px; height: 34px; }
+  .sub { font-size: 12px; }
+  .fps-chip { font-size: 12px; padding: 7px 12px; }
+  .step { margin: 16px 0 4px; }
+  .field { margin: 9px 0 3px; }
+  video#rtVideo { max-height: 32vh; }
+  canvas { max-height: 40vh; }
+  .transport { padding: 8px; gap: 7px; }
+  .transport button { padding: 8px 11px; font-size: 14px; }
 }
