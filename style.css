@@ -48,6 +48,7 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .01em; }
   color: var(--mut); border: 1px solid var(--line);
   padding: 3px 8px; border-radius: 6px; vertical-align: 3px; white-space: nowrap;
 }
+.ver { font-size: 10px; color: var(--mut); opacity: .7; }
 .sub { color: var(--mut); margin: 3px 0 0; font-size: 13px; }
 .fps-chip {
   font-family: var(--mono); font-size: 13px; white-space: nowrap;
