@@ -42,15 +42,16 @@
 
   let state = { dur: 60, fps: 60, frames: 3600, cur: 0, playing: false, raf: 0, last: 0, acc: 0 };
 
-  // Font styles: family alone is not enough on Android (missing families all
-  // fall back to the same Roboto), so weight / slant / spacing carry the look.
+  // Font styles: webfonts (Google Fonts CDN, nothing bundled in the repo) first,
+  // system stacks as offline fallback. document.fonts.load guarantees the
+  // webfont is ready before preview redraw and export (see refresh/exportVideo).
   const FONT_STYLES = {
-    mono:   { family: "'JetBrains Mono','Cascadia Mono',Consolas,'Roboto Mono',monospace", weight: 700, style: '', spacing: '0px' },
-    sans:   { family: "Arial,Helvetica,Roboto,sans-serif", weight: 700, style: '', spacing: '0px' },
-    serif:  { family: "Georgia,'Noto Serif','Times New Roman',serif", weight: 700, style: '', spacing: '0px' },
-    black:  { family: "Arial,Helvetica,Roboto,sans-serif", weight: 900, style: '', spacing: '0px' },
-    italic: { family: "Arial,Helvetica,Roboto,sans-serif", weight: 700, style: 'italic', spacing: '0px' },
-    spaced: { family: "'JetBrains Mono','Cascadia Mono',Consolas,'Roboto Mono',monospace", weight: 700, style: '', spacing: '8px' },
+    mono:    { family: "'JetBrains Mono','Cascadia Mono',Consolas,'Roboto Mono',monospace", weight: 700, style: '', spacing: '0px' },
+    sans:    { family: "'Archivo',Arial,Helvetica,Roboto,sans-serif", weight: 700, style: '', spacing: '0px' },
+    serif:   { family: "Georgia,'Noto Serif','Times New Roman',serif", weight: 700, style: '', spacing: '0px' },
+    black:   { family: "'Archivo Black','Arial Black',sans-serif", weight: 400, style: '', spacing: '0px' },
+    display: { family: "'Bebas Neue','Arial Narrow',sans-serif", weight: 400, style: '', spacing: '2px' },
+    tech:    { family: "'Orbitron','JetBrains Mono',monospace", weight: 700, style: '', spacing: '1px' },
   };
   function currentFont() {
     return FONT_STYLES[ui.font.value] || FONT_STYLES.mono;
@@ -63,6 +64,28 @@
   }
   function resetSpacing(octx) {
     try { octx.letterSpacing = '0px'; } catch { /* noop */ }
+  }
+  // Webfont readiness: redraw once the selected family arrives; try once per
+  // spec so offline fallback never loops.
+  const fontTried = new Set();
+  function fontSpec(f) {
+    return `${f.style ? f.style + ' ' : ''}${f.weight} 32px ${f.family}`;
+  }
+  function ensureFontDrawn() {
+    try {
+      if (!('fonts' in document) || !document.fonts.check) return;
+      const spec = fontSpec(currentFont());
+      if (!fontTried.has(spec)) {
+        fontTried.add(spec);
+        document.fonts.load(spec).then(() => refresh()).catch(() => {});
+      }
+    } catch { /* offline or old browser: system fallback stays */ }
+  }
+  async function ensureFontsBlocking() {
+    try {
+      await document.fonts.load(fontSpec(currentFont()));
+      await document.fonts.ready;
+    } catch { /* export proceeds with fallback */ }
   }
 
   function bgColor() {
@@ -138,6 +161,7 @@
     const head = Array.from({ length: Math.min(8, state.frames) }, (_, f) => T.frameToText(f, state.fps, { showHours: ui.fmt.value }));
     const last = T.frameToText(state.frames - 1, state.fps, { showHours: ui.fmt.value });
     ui.frameStrip.textContent = `frames: ${head.join('  ')}  …  ${last}`;
+    ensureFontDrawn();
     if (typeof paintAllRanges === 'function') paintAllRanges();
   }
 
@@ -260,6 +284,7 @@
     if (estMB > 300 && !confirm(`Estimated video size ~${Math.round(estMB)} MB. Continue?`)) return;
     ui.btnExport.disabled = true; ui.prog.hidden = false; ui.prog.value = 0;
     pause();
+    await ensureFontsBlocking(); // webfont ready before frame 0
     try {
       let out;
       if (window.MP4Export && window.MP4Export.supported()) {
