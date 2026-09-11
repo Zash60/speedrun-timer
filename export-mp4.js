@@ -2,7 +2,7 @@
 // Because it is offline (absolute timestamps, no wall clock), the export
 // KEEPS GOING with the tab in the background / screen off — just don't
 // close the tab. No pacing timers: the loop is promise-driven.
-import { Muxer, ArrayBufferTarget } from './mp4-muxer.mjs?v=20260910t';
+import { Muxer, ArrayBufferTarget } from './mp4-muxer.mjs?v=20260910v';
 
 const AVC_CODECS = [
   'avc1.640034', // High L5.2 (4K ok)
@@ -33,8 +33,6 @@ window.MP4Export = {
   supported() {
     return typeof VideoEncoder !== 'undefined' && typeof VideoFrame !== 'undefined';
   },
-  // Shared with the gameplay exporter (same muxer build, same codec probing).
-  lib: { Muxer, ArrayBufferTarget, pickCodec },
 
   // draw(ctx, W, H, frame) — paints frame N onto the given context.
   // onProgress(0..1) — called per batch (may update UI).
