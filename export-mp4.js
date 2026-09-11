@@ -2,7 +2,7 @@
 // Because it is offline (absolute timestamps, no wall clock), the export
 // KEEPS GOING with the tab in the background / screen off — just don't
 // close the tab. No pacing timers: the loop is promise-driven.
-import { Muxer, ArrayBufferTarget } from './mp4-muxer.mjs?v=20260910r';
+import { Muxer, ArrayBufferTarget } from './mp4-muxer.mjs?v=20260910t';
 
 const AVC_CODECS = [
   'avc1.640034', // High L5.2 (4K ok)
@@ -61,10 +61,18 @@ window.MP4Export = {
       output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
       error: (e) => { encodeErr = e; },
     });
-    encoder.configure({
-      codec, width: W, height: H, bitrate,
-      framerate: Math.max(1, Math.round(fps)),
-    });
+    // realtime latency: much faster encodes, negligible quality loss for timer content.
+    try {
+      encoder.configure({
+        codec, width: W, height: H, bitrate,
+        framerate: Math.max(1, Math.round(fps)), latencyMode: 'realtime',
+      });
+    } catch {
+      encoder.configure({
+        codec, width: W, height: H, bitrate,
+        framerate: Math.max(1, Math.round(fps)),
+      });
+    }
 
     const T = window.TimerCore;
     const keyInt = Math.max(1, Math.round(fps * 2)); // keyframe roughly every 2s
