@@ -343,12 +343,13 @@
     let fps;
     try { fps = readConfig().fps; } catch (e) { flashExport('⚠️ ' + e.message); return; }
     const br = parseInt(ui.bitrate.value, 10) * 1e6;
-    let seg;
+    // Segment selects WHERE the timer runs; the download is always the whole video
+    // (frozen at 0 before start, frozen at the end after it).
+    let seg = null;
     try {
-      seg = segment();
-      if (seg.frames <= 0) throw new Error('empty segment');
+      const s = segment();
+      if (s.frames > 0) seg = s;
     } catch (e) { flashExport('⚠️ ' + e.message); ui.btnExport.disabled = false; return; }
-    const segStartUs = Math.round(seg.start * 1e6);
     ui.btnExport.disabled = true; ui.prog.hidden = false; ui.prog.value = 0;
     pause();
     try {
@@ -393,7 +394,11 @@
       if (!vSamples.length) throw new Error('no video samples');
       const W = vTrack.video.width - (vTrack.video.width % 2);
       const H = vTrack.video.height - (vTrack.video.height % 2);
-      const N = T.totalFrames(seg.seconds, fps);
+      const vidDur = info.duration / info.timescale;
+      const N = T.totalFrames(vidDur, fps);
+      const segLenUs = seg ? Math.round(seg.seconds * 1e6) : Math.round(vidDur * 1e6);
+      const segStartUs = seg ? Math.round(seg.start * 1e6) : 0;
+      const segFrames = seg ? T.totalFrames(seg.seconds, fps) : N;
       const { Muxer, ArrayBufferTarget, pickCodec } = window.MP4Export.lib;
       const codec = await pickCodec(W, H, br, fps);
       if (!codec) throw new Error('H.264 unavailable in this browser');
@@ -423,13 +428,20 @@
       const fnt = currentFont();
       const px = fitFont(octx, fnt, Math.max(10, Math.round(H * state.overlay.size / 100)), W * 0.92);
       const keyInt = Math.max(1, Math.round(fps * 2));
-      const tsOf = (i) => segStartUs + T.frameTimestampUs(i, fps); // source (absolute)
+      const tsOf = (i) => T.frameTimestampUs(i, fps); // absolute video time
       const outTs = (i) => T.frameTimestampUs(i, fps); // muxer: first chunk must be 0
+      // Timer index for output i: runs inside the segment, frozen outside it.
+      const timerIdx = (i) => {
+        if (!seg) return Math.min(i, N - 1);
+        const rel = tsOf(i) - segStartUs;
+        const frac = Math.max(0, Math.min(1, rel / Math.max(1, segLenUs)));
+        return Math.round(frac * (segFrames - 1));
+      };
       let outIdx = 0, lastVf = null;
       const paint = (vf, i) => {
         octx.clearRect(0, 0, W, H);
         octx.drawImage(vf, 0, 0, W, H);
-        drawTimerText(octx, T.frameToText(i, fps, { showHours: ui.fmt.value }), W, H, px, fnt, state.overlay);
+        drawTimerText(octx, T.frameToText(timerIdx(i), fps, { showHours: ui.fmt.value }), W, H, px, fnt, state.overlay);
         const out = new VideoFrame(canvas, { timestamp: outTs(i), duration: T.frameDurationUs(fps) });
         enc.encode(out, { keyFrame: i % keyInt === 0 });
         out.close();
@@ -483,10 +495,8 @@
       if (aTrack && aSamples.length) {
         const meta = { decoderConfig: { codec: aTrack.codec, sampleRate: aTrack.audio.sample_rate, numberOfChannels: aTrack.audio.channel_count } };
         for (const s of aSamples) {
-          const at = ctsUs(s, aTs) - segStartUs;
-          if (at < 0) continue; // before the segment
           muxer.addAudioChunk(new EncodedAudioChunk({
-            type: 'key', timestamp: at, duration: durUs(s, aTs), data: s.data,
+            type: 'key', timestamp: ctsUs(s, aTs), duration: durUs(s, aTs), data: s.data,
           }), meta);
         }
       }
@@ -495,7 +505,7 @@
       const blob = new Blob([muxTarget.buffer], { type: 'video/mp4' });
       const fname = `gameplay-timer_${fps}fps_${W}x${H}.mp4`;
       downloadBlob(blob, fname);
-      exportDone(fname, blob, fps, N, seg.seconds, W, H, 'gameplay H.264');
+      exportDone(fname, blob, fps, N, vidDur, W, H, 'gameplay H.264');
     } catch (e) {
       ui.status.innerHTML = '❌ Gameplay export failed: ' + (e && e.stack ? String(e.stack).split('\n').slice(0, 3).join(' ') : e.message);
       ui.btnExport.disabled = false;
@@ -562,7 +572,7 @@
     try {
       const g = segment();
       const tFmt = T.formatMs(Math.round(g.seconds * 1000), { showHours: 'auto' });
-      ui.rtOut.innerHTML = `<b>${g.frames}</b> frames · segment <b>${g.seconds.toFixed(3)}s</b> @${g.fps}fps · timer <b>${tFmt}</b>`;
+      ui.rtOut.innerHTML = `<b>${g.frames}</b> frames · segment <b>${g.seconds.toFixed(3)}s</b> @${g.fps}fps · timer <b>${tFmt}</b> · export: full video`;
     } catch (err) {
       ui.rtOut.textContent = err.message;
     }
