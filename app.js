@@ -414,7 +414,12 @@
         output: (c, m) => muxer.addVideoChunk(c, m),
         error: (e) => { encErr = e; },
       });
-      enc.configure({ codec, width: W, height: H, bitrate: br, framerate: Math.max(1, Math.round(fps)) });
+      // realtime latency: much faster encodes, negligible quality loss here.
+      try {
+        enc.configure({ codec, width: W, height: H, bitrate: br, framerate: Math.max(1, Math.round(fps)), latencyMode: 'realtime' });
+      } catch {
+        enc.configure({ codec, width: W, height: H, bitrate: br, framerate: Math.max(1, Math.round(fps)) });
+      }
       let decErr = null;
       const decoded = [];
       const dec = new VideoDecoder({
@@ -460,7 +465,7 @@
           outIdx++;
         }
       };
-      const BATCH = 120;
+      const BATCH = 480;
       for (let b = 0; b < vSamples.length; b += BATCH) {
         if (decErr) throw decErr;
         if (encErr) throw encErr;
