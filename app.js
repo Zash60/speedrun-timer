@@ -220,6 +220,36 @@
     drawTimerText(octx, text, W, H, px, fnt);
   }
 
+  // One progress reporter for every export: bar plus time-left line.
+  let expT0 = 0;
+  function fmtLeft(sec) {
+    sec = Math.max(0, Math.round(sec));
+    const m = Math.floor(sec / 60), s = sec % 60;
+    return m > 0 ? `${m}m ${String(s).padStart(2, '0')}s` : `${s}s`;
+  }
+  function expProgress(done, total) {
+    const p = total > 0 ? Math.max(0, Math.min(1, done / total)) : 0;
+    ui.prog.hidden = false;
+    ui.prog.value = Math.round(p * 100);
+    const eta = $('eta');
+    if (!eta) return;
+    if (done <= 0) {
+      expT0 = Date.now();
+      eta.hidden = false;
+      eta.textContent = 'starting…';
+      return;
+    }
+    const el = (Date.now() - expT0) / 1000;
+    if (el > 1 && done < total) {
+      eta.hidden = false;
+      eta.textContent = `${Math.round(p * 100)}% · ≈ ${fmtLeft((el / done) * (total - done))} left`;
+    }
+  }
+  function expHide() {
+    ui.prog.value = 100;
+    const eta = $('eta');
+    if (eta) eta.hidden = true;
+  }
   function downloadBlob(blob, fname) {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -229,7 +259,7 @@
   }
 
   function exportDone(fname, blob, fps, frames, dur, W, H, method) {
-    ui.prog.value = 100;
+    expHide();
     ui.status.innerHTML = `✅ <b>${fname}</b> downloaded (${(blob.size / 1048576).toFixed(2)} MB · ${frames} frames @ ${fps}fps via ${method}).<br>Duration ≈ ${(frames / fps).toFixed(3)}s · frames 0..2: ${[0, 1, 2].map(f => T.frameToText(f, fps, { showHours: ui.fmt.value })).join(' · ')}`;
     ui.btnExport.disabled = false;
     refresh();
@@ -245,7 +275,7 @@
     const blob = await window.MP4Export.export({
       fps, frames, bitrate: br, draw,
       onProgress: (p) => {
-        ui.prog.value = Math.round(p * 100);
+        expProgress(Math.round(p * frames), frames);
         ui.status.innerHTML = `⏳ Encoding MP4 <b>${Math.round(p * 100)}%</b> (${frames} frames) — you can minimize the tab, just don't close it…`;
       },
     });
@@ -279,7 +309,7 @@
         ctx.clearRect(0, 0, cv.width, cv.height);
         ctx.drawImage(off, 0, 0, cv.width, cv.height);
         const p = Math.round((f / frames) * 100);
-        ui.prog.value = p;
+        expProgress(f, frames);
         ui.status.innerHTML = `⏳ Recording (${ext.toUpperCase()} fallback) frame <b>${f}/${frames - 1}</b> (${p}%) — keep the tab visible…`;
       }
       const wait = (t0 + f * frameMs) - performance.now();
@@ -350,7 +380,8 @@
       const s = segment();
       if (s.frames > 0) seg = s;
     } catch (e) { flashExport('⚠️ ' + e.message); ui.btnExport.disabled = false; return; }
-    ui.btnExport.disabled = true; ui.prog.hidden = false; ui.prog.value = 0;
+    ui.btnExport.disabled = true;
+    expProgress(0, 1);
     pause();
     try {
       await ensureFontsBlocking();
@@ -486,6 +517,7 @@
         decoded.length = 0;
         for (const h of hold) decoded.push(h);
         ui.prog.value = Math.round((outIdx / N) * 100);
+        expProgress(outIdx, N);
         ui.status.innerHTML = `⏳ Burning timer into gameplay <b>${Math.round((outIdx / N) * 100)}%</b> — you can minimize, do not close…`;
         await new Promise((r) => setTimeout(r, 0));
       }
@@ -514,6 +546,8 @@
     } catch (e) {
       ui.status.innerHTML = '❌ Gameplay export failed: ' + (e && e.stack ? String(e.stack).split('\n').slice(0, 3).join(' ') : e.message);
       ui.btnExport.disabled = false;
+      const eta2 = $('eta');
+      if (eta2) eta2.hidden = true;
     }
   }
 
@@ -526,7 +560,8 @@
     const br = parseInt(ui.bitrate.value, 10) * 1e6;
     const estMB = (br * dur) / 8 / 1048576;
     if (estMB > 300 && !confirm(`Estimated video size ~${Math.round(estMB)} MB. Continue?`)) return;
-    ui.btnExport.disabled = true; ui.prog.hidden = false; ui.prog.value = 0;
+    ui.btnExport.disabled = true;
+    expProgress(0, 1);
     pause();
     await ensureFontsBlocking(); // webfont ready before frame 0
     try {
@@ -548,6 +583,8 @@
     } catch (e) {
       ui.status.innerHTML = '❌ Export failed: ' + e.message;
       ui.btnExport.disabled = false;
+      const eta = $('eta');
+      if (eta) eta.hidden = true;
     }
   }
 
