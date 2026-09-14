@@ -73,15 +73,36 @@
     while (octx.measureText(WIDEST_SAMPLE).width > maxW && px > 10 && guard++ < 200) { px -= 4; setF(px); }
     return px;
   }
+  // Cached font metrics: measureText is slow and its result never changes
+  // between frames (same family/weight/size/width — only the text changes).
+  // Timer charset is digits + ':' + '.', so one pass warms the whole cache
+  // and steady-state drawing does ZERO measureText calls. Same numbers out.
+  let metricsCache = { key: '', px: 0, digitW: 0, sepW: null, sp: 0 };
+  function fontMetrics(octx, fnt, startPx, maxW) {
+    const key = `${ui.font.value}|${startPx}|${Math.round(maxW)}`;
+    if (metricsCache.key !== key) {
+      const px = fitFont(octx, fnt, startPx, maxW);
+      octx.font = fontCss(fnt, px);
+      let digitW = 0;
+      for (let d = 0; d <= 9; d++) digitW = Math.max(digitW, octx.measureText(String(d)).width);
+      metricsCache = {
+        key, px, digitW,
+        sepW: { ':': octx.measureText(':').width, '.': octx.measureText('.').width },
+        sp: parseFloat(fnt.spacing) || 0,
+      };
+    }
+    return metricsCache;
+  }
   // Tabular-emulated centered text: every digit gets the widest digit cell,
   // so total width is constant and no frame shifts.
-  function drawTimerText(octx, text, W, H, px, fnt) {
+  function drawTimerText(octx, text, W, H, px, fnt, m) {
     octx.font = fontCss(fnt, px);
     octx.textAlign = 'left'; octx.textBaseline = 'middle';
-    const sp = parseFloat(fnt.spacing) || 0;
-    let digitW = 0;
-    for (let d = 0; d <= 9; d++) digitW = Math.max(digitW, octx.measureText(String(d)).width);
-    const adv = (ch) => (/\d/.test(ch) ? digitW : octx.measureText(ch).width) + sp;
+    const sp = m ? m.sp : (parseFloat(fnt.spacing) || 0);
+    let digitW = m ? m.digitW : 0;
+    if (!m) for (let d = 0; d <= 9; d++) digitW = Math.max(digitW, octx.measureText(String(d)).width);
+    const sepW = m ? m.sepW : null;
+    const adv = (ch) => (/\d/.test(ch) ? digitW : (sepW && ch in sepW ? sepW[ch] : octx.measureText(ch).width)) + sp;
     let total = 0;
     for (const ch of text) total += adv(ch);
     total -= sp; // no trailing space
@@ -109,7 +130,9 @@
       const spec = fontSpec(currentFont());
       if (!fontTried.has(spec)) {
         fontTried.add(spec);
-        document.fonts.load(spec).then(() => refresh()).catch(() => {});
+        // Webfont arrived after fallback metrics were cached → drop the cache
+        // so the next frame re-measures with the real font.
+        document.fonts.load(spec).then(() => { metricsCache.key = ''; refresh(); }).catch(() => {});
       }
     } catch { /* offline or old browser: system fallback stays */ }
   }
@@ -117,6 +140,7 @@
     try {
       await document.fonts.load(fontSpec(currentFont()));
       await document.fonts.ready;
+      metricsCache.key = ''; // re-measure with the real font before frame 0
     } catch { /* export proceeds with fallback */ }
   }
 
@@ -140,10 +164,10 @@
     ctx.clearRect(0, 0, W, H);
     if (bg) { ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H); }
     const text = T.frameToText(frame, state.fps, { format: ui.fmt.value });
-    // tabular-emulated, centered, zero wobble
+    // tabular-emulated, centered, zero wobble (metrics cached across frames)
     const fnt = currentFont();
-    const px = fitFont(ctx, fnt, parseInt(ui.fontSize.value, 10), W * 0.92);
-    drawTimerText(ctx, text, W, H, px, fnt);
+    const m = fontMetrics(ctx, fnt, parseInt(ui.fontSize.value, 10), W * 0.92);
+    drawTimerText(ctx, text, W, H, m.px, fnt, m);
     return text;
   }
 
@@ -208,8 +232,8 @@
     if (bg) { octx.fillStyle = bg; octx.fillRect(0, 0, W, H); }
     const text = T.frameToText(frame, fps, { format: ui.fmt.value });
     const fnt = currentFont();
-    const px = fitFont(octx, fnt, parseInt(ui.fontSize.value, 10), W * 0.92);
-    drawTimerText(octx, text, W, H, px, fnt);
+    const m = fontMetrics(octx, fnt, parseInt(ui.fontSize.value, 10), W * 0.92);
+    drawTimerText(octx, text, W, H, m.px, fnt, m);
   }
 
   // One progress reporter for every export: bar plus time-left line.

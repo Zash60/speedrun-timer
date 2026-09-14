@@ -45,7 +45,9 @@ window.MP4Export = {
 
     const canvas = document.createElement('canvas');
     canvas.width = W; canvas.height = H;
-    const ctx = canvas.getContext('2d');
+    // Opaque: background is always a solid color, so there is no alpha to
+    // composite or upload — same pixels out, less work per VideoFrame.
+    const ctx = canvas.getContext('2d', { alpha: false });
 
     const target = new ArrayBufferTarget();
     const muxer = new Muxer({
@@ -74,13 +76,15 @@ window.MP4Export = {
 
     const T = window.TimerCore;
     const keyInt = Math.max(1, Math.round(fps * 2)); // keyframe roughly every 2s
+    const frameDur = T.frameDurationUs(fps); // constant per export
+    let lastUiPaint = 0;
     try {
       for (let f = 0; f < frames; f++) {
         if (encodeErr) throw encodeErr;
         draw(ctx, W, H, f);
         const vf = new VideoFrame(canvas, {
           timestamp: T.frameTimestampUs(f, fps),
-          duration: T.frameDurationUs(fps),
+          duration: frameDur,
         });
         encoder.encode(vf, { keyFrame: f % keyInt === 0 });
         vf.close();
@@ -88,8 +92,21 @@ window.MP4Export = {
         if (encoder.encodeQueueSize > 20) await encoder.flush();
         if (f % 24 === 0) {
           if (onProgress) onProgress(f / frames);
-          // yield for UI (setTimeout(0) still fires in background, just slower)
-          await new Promise((r) => setTimeout(r, 0));
+          // Microtask yield: keeps the loop hot. A raw setTimeout(0) here is
+          // clamped to ~1000ms in a hidden/minimized tab, stalling the whole
+          // export once per batch — exactly the "minimize the tab" case.
+          await Promise.resolve();
+          // …but the progress bar needs a real macrotask to paint — and only
+          // when visible (a hidden page can't paint anyway, so skip it there
+          // and the export runs at full speed in background). Throttle the
+          // visible case to ~4Hz: smooth bar, negligible stall.
+          if (!document.hidden) {
+            const now = performance.now();
+            if (now - lastUiPaint > 250) {
+              lastUiPaint = now;
+              await new Promise((r) => setTimeout(r, 0));
+            }
+          }
         }
       }
       if (onProgress) onProgress(1);
