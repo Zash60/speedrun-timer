@@ -44,13 +44,6 @@ code {
 .brand { display: flex; align-items: center; gap: 12px; }
 .logo { display: grid; place-items: center; width: 40px; height: 40px; flex: none; }
 h1 { font-size: 20px; margin: 0; letter-spacing: .01em; }
-.badge {
-  font-size: 10.5px; font-weight: 700; letter-spacing: .08em;
-  color: var(--mut); border: 1px solid var(--line);
-  padding: 3px 8px; border-radius: 6px; vertical-align: 3px; white-space: nowrap;
-}
-.ver { font-size: 10px; color: var(--mut); opacity: .7; }
-.sub { color: var(--mut); margin: 3px 0 0; font-size: 13px; }
 .head-right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
 .repo-link {
   font-size: 13px; font-weight: 600; color: var(--mut); text-decoration: none;
@@ -58,11 +51,6 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .01em; }
   background: var(--field); white-space: nowrap;
 }
 .repo-link:hover { color: var(--txt); border-color: var(--mut); }
-.fps-chip {
-  font-family: var(--mono); font-size: 13px; white-space: nowrap;
-  padding: 8px 14px; border-radius: 6px;
-  background: var(--card); border: 1px solid var(--line); color: var(--txt);
-}
 
 /* ---------- layout ---------- */
 .grid {
@@ -235,8 +223,6 @@ input[type="range"] { --fill: 30%; }
   .card { padding: 14px; }
   h1 { font-size: 17px; }
   .logo { width: 34px; height: 34px; }
-  .sub { font-size: 12px; }
-  .fps-chip { font-size: 12px; padding: 7px 12px; }
   .step { margin: 16px 0 4px; }
   .field { margin: 9px 0 3px; }
   canvas { max-height: 40vh; }
