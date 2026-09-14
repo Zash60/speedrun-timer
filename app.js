@@ -29,7 +29,7 @@
   }
   const ui = {
     duration: $('duration'), fps: $('fps'), w: $('w'), h: $('h'),
-    bg: $('bg'), bgCustom: $('bgCustom'), fg: $('fg'),
+    bgCustom: $('bgCustom'), fg: $('fg'),
     fontSize: $('fontSize'), fontSizeVal: $('fontSizeVal'),
     font: $('font'), fmt: $('fmt'), stroke: $('stroke'),
     bitrate: $('bitrate'), bitrateVal: $('bitrateVal'),
@@ -121,9 +121,7 @@
   }
 
   function bgColor() {
-    if (ui.bg.value === 'custom') return ui.bgCustom.value;
-    if (ui.bg.value === 'transparent') return null;
-    return ui.bg.value;
+    return ui.bgCustom.value;
   }
 
   function readConfig() {
@@ -141,7 +139,7 @@
     const bg = bgColor();
     ctx.clearRect(0, 0, W, H);
     if (bg) { ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H); }
-    const text = T.frameToText(frame, state.fps, { showHours: ui.fmt.value });
+    const text = T.frameToText(frame, state.fps, { format: ui.fmt.value });
     // tabular-emulated, centered, zero wobble
     const fnt = currentFont();
     const px = fitFont(ctx, fnt, parseInt(ui.fontSize.value, 10), W * 0.92);
@@ -179,8 +177,8 @@
     ui.fontSizeVal.textContent = ui.fontSize.value + 'px';
     ui.bitrateVal.textContent = ui.bitrate.value + ' Mbps';
     // frame strip: first 8 + last
-    const head = Array.from({ length: Math.min(8, state.frames) }, (_, f) => T.frameToText(f, state.fps, { showHours: ui.fmt.value }));
-    const last = T.frameToText(state.frames - 1, state.fps, { showHours: ui.fmt.value });
+    const head = Array.from({ length: Math.min(8, state.frames) }, (_, f) => T.frameToText(f, state.fps, { format: ui.fmt.value }));
+    const last = T.frameToText(state.frames - 1, state.fps, { format: ui.fmt.value });
     ui.frameStrip.textContent = `frames: ${head.join('  ')}  …  ${last}`;
     ensureFontDrawn();
     if (typeof paintAllRanges === 'function') paintAllRanges();
@@ -202,13 +200,13 @@
   function pause() { state.playing = false; cancelAnimationFrame(state.raf); ui.btnPlay.textContent = '▶'; }
 
   // ---- shared painter (preview uses drawFrame; export uses paintTimer) ----
-  // matteBlack=true: H.264 has no alpha → transparent background becomes matte black.
+  // matteBlack=true: H.264 has no alpha, so a missing bg falls back to matte black.
   function paintTimer(octx, W, H, frame, fps, matteBlack) {
     let bg = bgColor();
     if (matteBlack && !bg) bg = '#000000';
     octx.clearRect(0, 0, W, H);
     if (bg) { octx.fillStyle = bg; octx.fillRect(0, 0, W, H); }
-    const text = T.frameToText(frame, fps, { showHours: ui.fmt.value });
+    const text = T.frameToText(frame, fps, { format: ui.fmt.value });
     const fnt = currentFont();
     const px = fitFont(octx, fnt, parseInt(ui.fontSize.value, 10), W * 0.92);
     drawTimerText(octx, text, W, H, px, fnt);
@@ -254,7 +252,7 @@
 
   function exportDone(fname, blob, fps, frames, dur, W, H, method) {
     expHide();
-    ui.status.innerHTML = `✅ <b>${fname}</b> downloaded (${(blob.size / 1048576).toFixed(2)} MB · ${frames} frames @ ${fps}fps via ${method}).<br>Duration ≈ ${(frames / fps).toFixed(3)}s · frames 0..2: ${[0, 1, 2].map(f => T.frameToText(f, fps, { showHours: ui.fmt.value })).join(' · ')}`;
+    ui.status.innerHTML = `✅ <b>${fname}</b> downloaded (${(blob.size / 1048576).toFixed(2)} MB · ${frames} frames @ ${fps}fps via ${method}).<br>Duration ≈ ${(frames / fps).toFixed(3)}s · frames 0..2: ${[0, 1, 2].map(f => T.frameToText(f, fps, { format: ui.fmt.value })).join(' · ')}`;
     ui.btnExport.disabled = false;
     refresh();
   }
@@ -366,7 +364,7 @@
   paintAllRanges();
   // Safari fires change-only on <select>: listen to both (refresh is idempotent).
   function onControl() { pause(); refresh(); }
-  ['duration', 'fps', 'w', 'h', 'bg', 'bgCustom', 'fg', 'fontSize', 'font', 'fmt', 'stroke', 'bitrate']
+  ['duration', 'fps', 'w', 'h', 'bgCustom', 'fg', 'fontSize', 'font', 'fmt', 'stroke', 'bitrate']
     .forEach(id => { $(id).addEventListener('input', onControl); $(id).addEventListener('change', onControl); });
   $('durPresets').addEventListener('click', (e) => { if (e.target.dataset.d) { ui.duration.value = e.target.dataset.d; pause(); refresh(); } });
   $('fpsPresets').addEventListener('click', (e) => {

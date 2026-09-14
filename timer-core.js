@@ -20,24 +20,32 @@
     return Math.round((frame * 1000) / fps);
   }
 
+  // fmt: 'auto' | 'hms-ms' (H:MM:SS.mmm) | 'ms-ms' (MM:SS.mmm)
+  //      | 'hms' (H:MM:SS) | 'ms' (MM:SS) | 's-ms' (SS.mmm, seconds).
+  // Legacy { showHours: 'always' | 'never' | 'auto' } still maps to the
+  // equivalent *-ms format.
   function formatMs(ms, opts) {
     opts = opts || {};
-    const showHours = opts.showHours === 'always' ? true
-      : opts.showHours === 'never' ? false
-      : ms >= 3600000; // 'auto' (ou ausente): horas só se ≥1h
-    const m = Math.floor(ms / 60000);
-    const s = Math.floor((ms % 60000) / 1000);
-    const milli = ms % 1000;
-    const mm = String(m % 60).padStart(2, '0');
-    const ss = String(s).padStart(2, '0');
-    const mmm = String(milli).padStart(3, '0');
-    if (showHours) {
-      const h = Math.floor(ms / 3600000);
-      const minInHour = String(Math.floor(ms / 60000) % 60).padStart(2, '0');
-      return `${h}:${minInHour}:${ss}.${mmm}`;
+    let fmt = opts.format;
+    if (!fmt) {
+      fmt = opts.showHours === 'always' ? 'hms-ms'
+        : opts.showHours === 'never' ? 'ms-ms'
+        : 'auto';
     }
-    const MM = String(m).padStart(2, '0');
-    return `${MM}:${ss}.${mmm}`;
+    if (fmt === 'auto') fmt = ms >= 3600000 ? 'hms-ms' : 'ms-ms'; // horas só se ≥1h
+    const milli = ms % 1000;
+    const mmm = String(milli).padStart(3, '0');
+    const sec = Math.floor(ms / 1000);
+    const ss = String(sec % 60).padStart(2, '0');
+    if (fmt === 's-ms') return `${sec}.${mmm}`;
+    const min = Math.floor(ms / 60000);
+    if (fmt === 'ms' || fmt === 'ms-ms') {
+      const MM = String(min).padStart(2, '0');
+      return fmt === 'ms' ? `${MM}:${ss}` : `${MM}:${ss}.${mmm}`;
+    }
+    const h = Math.floor(ms / 3600000);
+    const mm = String(min % 60).padStart(2, '0');
+    return fmt === 'hms' ? `${h}:${mm}:${ss}` : `${h}:${mm}:${ss}.${mmm}`;
   }
 
   function frameToText(frame, fps, opts) {
