@@ -169,8 +169,10 @@
       state.frames = T.totalFrames(dur, fps);
     } catch (e) { ui.status.innerHTML = '⚠️ ' + e.message; return; }
     ui.seek.max = state.frames - 1;
-    const fMs = (1000 / state.fps);
-    ui.fpsChip.textContent = `${state.fps} fps · frame = ${fMs.toFixed(3)} ms`;
+    if (ui.fpsChip) {
+      const fMs = (1000 / state.fps);
+      ui.fpsChip.textContent = `${state.fps} fps · frame = ${fMs.toFixed(3)} ms`;
+    }
     ui.durInfo.innerHTML = `<b>${state.frames}</b> frames · <b>${state.dur.toFixed(3)}s</b> video at <b>${state.fps} fps</b>`;
     const ex = [0, 1, 2, 3, 4].map(f => T.frameToMs(f, state.fps)).join(' · ');
     ui.fpsInfo.textContent = `${state.fps}fps → ${ex} … (round(frame×1000÷fps))`;
