@@ -25,8 +25,9 @@ Everything runs locally in the browser. No uploads, no accounts.
 1. Set the video duration (`90`, `1:30`, `10:00.000`).
 2. Set the exact FPS (`30`, `60`, `59.94`, `120`, `144`, or any value 1–240).
    The exported video runs at that same FPS.
-3. Adjust resolution, background, color, and font. Use the green background
-   with Chroma Key in your editor if you need transparency.
+3. Adjust resolution, background color, text color, font, and time format
+   (`MM:SS.mmm`, `H:MM:SS`, `MM:SS`, seconds `SS.mmm`, …). Use a green
+   background with Chroma Key in your editor if you need transparency.
 4. Press **Download MP4 video**. Encoding is offline, so you can minimize
    the tab while it works — just don't close it.
 
@@ -34,8 +35,8 @@ Everything runs locally in the browser. No uploads, no accounts.
 
 - The video always ends on the round number: frame count is
   `round(duration × fps) + 1`.
-- H.264 has no alpha channel. A transparent background exports as matte
-  black; use green chroma + Chroma Key instead.
+- H.264 has no alpha channel, so there is no transparency option: pick a
+  solid background color (e.g. green chroma + Chroma Key for transparency).
 - MP4 export needs Chrome or Edge (WebCodecs) and the page served over
   `http://localhost`, not `file://`. Other browsers fall back to
   MediaRecorder (MP4 if supported, otherwise WebM, in real time).

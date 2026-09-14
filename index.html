@@ -60,19 +60,7 @@
       <button data-w="1080" data-h="1080">1:1</button>
       <button data-w="1080" data-h="1920">vertical</button>
     </div>
-    <div class="row">
-      <label class="field">Background
-        <select id="bg">
-          <option value="transparent">Transparent (alpha)</option>
-          <option value="#000000">Black</option>
-          <option value="#00FF00" selected>Green chroma</option>
-          <option value="#0000FF">Blue chroma</option>
-          <option value="#FFFFFF">White</option>
-          <option value="custom">Custom color…</option>
-        </select>
-      </label>
-      <label class="field">Custom color <input id="bgCustom" type="color" value="#00ff00"></label>
-    </div>
+    <label class="field">Background color <input id="bgCustom" type="color" value="#00ff00"></label>
     <div class="row">
       <label class="field">Text color <input id="fg" type="color" value="#ffffff"></label>
       <label class="field">Size <span class="val" id="fontSizeVal">160px</span>
@@ -93,8 +81,11 @@
       <label class="field">Format
         <select id="fmt">
           <option value="auto">Auto (h only if ≥1h)</option>
-          <option value="always">H:MM:SS.mmm</option>
-          <option value="never">MM:SS.mmm</option>
+          <option value="hms-ms">H:MM:SS.mmm</option>
+          <option value="ms-ms">MM:SS.mmm</option>
+          <option value="hms">H:MM:SS</option>
+          <option value="ms">MM:SS</option>
+          <option value="s-ms">Seconds (SS.mmm)</option>
         </select>
       </label>
       <label class="chk"><input id="stroke" type="checkbox" checked> <span>outline/shadow</span></label>
