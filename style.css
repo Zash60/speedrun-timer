@@ -9,11 +9,28 @@
   --acc: #35b26f;          /* acento único: exportação + seleção ativa */
   --acc-ink: #04140a;      /* texto sobre o acento */
   --track: #2a3442;        /* trilho de slider */
+  --checker-a: #161d27;
+  --checker-b: #10151d;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
 }
 * { box-sizing: border-box; }
 html { color-scheme: dark; overflow-x: clip; }
+html[data-theme="light"] { color-scheme: light; }
+/* Light theme: same flat instrument look, inverted surfaces. Accent kept. */
+html[data-theme="light"] {
+  --bg: #eef1f6;
+  --card: #ffffff;
+  --field: #e8edf4;
+  --line: #d3dbe6;
+  --txt: #131a24;
+  --mut: #5c6b80;
+  --acc: #1f9d57;
+  --acc-ink: #ffffff;
+  --track: #c6d1df;
+  --checker-a: #dbe2ec;
+  --checker-b: #cdd6e2;
+}
 body { overflow-x: clip; }
 body {
   margin: 0;
@@ -51,6 +68,15 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .01em; }
   background: var(--field); white-space: nowrap;
 }
 .repo-link:hover { color: var(--txt); border-color: var(--mut); }
+.theme-btn {
+  font-size: 13px; font-weight: 600; color: var(--mut);
+  border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px;
+  background: var(--field); cursor: pointer; display: inline-flex;
+  align-items: center; line-height: 1;
+}
+.theme-btn:hover { color: var(--txt); border-color: var(--mut); }
+.theme-btn svg { display: block; }
+.theme-btn svg[hidden] { display: none; }
 
 /* ---------- layout ---------- */
 .grid {
@@ -185,7 +211,7 @@ progress::-moz-progress-bar { background: var(--acc); border-radius: 6px; }
   padding: 5px 10px; border-radius: 6px; color: var(--txt); white-space: nowrap;
 }
 .canvasBox {
-  background: repeating-conic-gradient(#161d27 0 25%, #10151d 0 50%) 0 0/26px 26px;
+  background: repeating-conic-gradient(var(--checker-a, #161d27) 0 25%, var(--checker-b, #10151d) 0 50%) 0 0/26px 26px;
   border: 1px solid var(--line); border-radius: 10px;
   overflow: hidden; display: flex; justify-content: center;
 }
