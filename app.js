@@ -405,6 +405,23 @@
   ui.btnPlay.addEventListener('click', () => state.playing ? pause() : play());
   ui.btnRestart.addEventListener('click', () => { pause(); state.cur = 0; refreshFrame(); });
   ui.btnExport.addEventListener('click', exportVideo);
+  // Theme toggle (dark default): persisted, system-aware on first load
+  // (see the inline head script). Icons swap with the active theme.
+  const themeBtn = $('themeBtn');
+  const syncThemeIcon = () => {
+    const light = document.documentElement.dataset.theme === 'light';
+    const moon = $('themeIconMoon'), sun = $('themeIconSun');
+    if (moon) moon.hidden = light;
+    if (sun) sun.hidden = !light;
+    if (themeBtn) themeBtn.title = light ? 'Switch to dark theme' : 'Switch to light theme';
+  };
+  if (themeBtn) themeBtn.addEventListener('click', () => {
+    const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem('zt-theme', next); } catch { /* private mode */ }
+    syncThemeIcon();
+  });
+  syncThemeIcon();
   if (ui.btnPng) ui.btnPng.addEventListener('click', () => {
     drawFrame(state.cur);
     const a = document.createElement('a');
