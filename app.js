@@ -351,7 +351,7 @@
     try { cfg = readConfig(); } catch (e) { ui.status.innerHTML = 'Warning: ' + e.message; return; }
     const { dur, fps, W, H } = cfg;
     const frames = T.totalFrames(dur, fps);
-    if (frames > fps * 3600) { ui.status.innerHTML = 'Warning: 1h limit per browser export.'; return; }
+    if (dur > 3600) { ui.status.innerHTML = 'Warning: 1h limit per browser export.'; return; }
     const br = parseInt(ui.bitrate.value, 10) * 1e6;
     const estMB = (br * dur) / 8 / 1048576;
     if (estMB > 300 && !confirm(`Estimated video size ~${Math.round(estMB)} MB. Continue?`)) return;
