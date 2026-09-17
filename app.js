@@ -21,7 +21,7 @@
         const txt = String(v).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
         const prog = $('prog');
         if (prog) prog.title = txt;
-        if (/^(✅|❌|⚠️)/.test(txt)) flashExport(txt);
+        if (/downloaded|failed|Warning:/.test(txt)) flashExport(txt);
       },
       get() { return ''; },
     });
@@ -189,7 +189,7 @@
       const { dur, fps } = readConfig();
       state.dur = dur; state.fps = fps;
       state.frames = T.totalFrames(dur, fps);
-    } catch (e) { ui.status.innerHTML = '⚠️ ' + e.message; return; }
+    } catch (e) { ui.status.innerHTML = 'Warning: ' + e.message; return; }
     ui.seek.max = state.frames - 1;
     if (ui.fpsChip) {
       const fMs = (1000 / state.fps);
@@ -220,8 +220,13 @@
     if (adv) refreshFrame();
     state.raf = requestAnimationFrame(loop);
   }
-  function play() { if (state.cur >= state.frames - 1) state.cur = 0; state.playing = true; state.last = 0; state.acc = 0; ui.btnPlay.textContent = '⏸'; state.raf = requestAnimationFrame(loop); }
-  function pause() { state.playing = false; cancelAnimationFrame(state.raf); ui.btnPlay.textContent = '▶'; }
+  function setPlayingIcon(playing) {
+    const play = $('iconPlay'), pause = $('iconPause');
+    if (play) play.hidden = playing;
+    if (pause) pause.hidden = !playing;
+  }
+  function play() { if (state.cur >= state.frames - 1) state.cur = 0; state.playing = true; state.last = 0; state.acc = 0; setPlayingIcon(true); state.raf = requestAnimationFrame(loop); }
+  function pause() { state.playing = false; cancelAnimationFrame(state.raf); setPlayingIcon(false); }
 
   // ---- shared painter (preview uses drawFrame; export uses paintTimer) ----
   // matteBlack=true: H.264 has no alpha, so a missing bg falls back to matte black.
@@ -276,7 +281,7 @@
 
   function exportDone(fname, blob, fps, frames, dur, W, H, method) {
     expHide();
-    ui.status.innerHTML = `✅ <b>${fname}</b> downloaded (${(blob.size / 1048576).toFixed(2)} MB · ${frames} frames @ ${fps}fps via ${method}).<br>Duration ≈ ${(frames / fps).toFixed(3)}s · frames 0..2: ${[0, 1, 2].map(f => T.frameToText(f, fps, { format: ui.fmt.value })).join(' · ')}`;
+    ui.status.innerHTML = `<b>${fname}</b> downloaded (${(blob.size / 1048576).toFixed(2)} MB · ${frames} frames @ ${fps}fps via ${method}).<br>Duration ≈ ${(frames / fps).toFixed(3)}s · frames 0..2: ${[0, 1, 2].map(f => T.frameToText(f, fps, { format: ui.fmt.value })).join(' · ')}`;
     ui.btnExport.disabled = false;
     refresh();
   }
@@ -292,7 +297,7 @@
       fps, frames, bitrate: br, draw,
       onProgress: (p) => {
         expProgress(Math.round(p * frames), frames);
-        ui.status.innerHTML = `⏳ Encoding MP4 <b>${Math.round(p * 100)}%</b> (${frames} frames) — you can minimize the tab, just don't close it…`;
+        ui.status.innerHTML = `Encoding MP4 <b>${Math.round(p * 100)}%</b> (${frames} frames) — you can minimize the tab, just don't close it…`;
       },
     });
     return { blob, ext: 'mp4', method: 'MP4 offline (H.264)' };
@@ -326,7 +331,7 @@
         ctx.drawImage(off, 0, 0, cv.width, cv.height);
         const p = Math.round((f / frames) * 100);
         expProgress(f, frames);
-        ui.status.innerHTML = `⏳ Recording (${ext.toUpperCase()} fallback) frame <b>${f}/${frames - 1}</b> (${p}%) — keep the tab visible…`;
+        ui.status.innerHTML = `Recording (${ext.toUpperCase()} fallback) frame <b>${f}/${frames - 1}</b> (${p}%) — keep the tab visible…`;
       }
       const wait = (t0 + f * frameMs) - performance.now();
       if (wait > 0) await sleep(wait);
@@ -339,10 +344,10 @@
 
   async function exportVideo() {
     let cfg;
-    try { cfg = readConfig(); } catch (e) { ui.status.innerHTML = '⚠️ ' + e.message; return; }
+    try { cfg = readConfig(); } catch (e) { ui.status.innerHTML = 'Warning: ' + e.message; return; }
     const { dur, fps, W, H } = cfg;
     const frames = T.totalFrames(dur, fps);
-    if (frames > fps * 3600) { ui.status.innerHTML = '⚠️ 1h limit per browser export.'; return; }
+    if (frames > fps * 3600) { ui.status.innerHTML = 'Warning: 1h limit per browser export.'; return; }
     const br = parseInt(ui.bitrate.value, 10) * 1e6;
     const estMB = (br * dur) / 8 / 1048576;
     if (estMB > 300 && !confirm(`Estimated video size ~${Math.round(estMB)} MB. Continue?`)) return;
@@ -355,19 +360,19 @@
       if (window.MP4Export && window.MP4Export.supported()) {
         try { out = await exportMP4Offline(cfg, br); }
         catch (e) {
-          console.warn('MP4 offline falhou, usando fallback:', e);
-          ui.status.innerHTML = `⚠️ Offline MP4 failed (${e.message}). Trying realtime fallback…`;
+          console.warn('Offline MP4 failed, using fallback:', e);
+          ui.status.innerHTML = `Offline MP4 failed (${e.message}). Trying realtime fallback…`;
           out = await exportViaRecorder(cfg, br);
         }
       } else {
-        ui.status.innerHTML = 'ℹ️ WebCodecs unavailable (use Chrome/Edge for offline MP4). Using realtime fallback…';
+        ui.status.innerHTML = 'Note: WebCodecs unavailable (use Chrome/Edge for offline MP4). Using realtime fallback…';
         out = await exportViaRecorder(cfg, br);
       }
       const fname = `speedrun-timer_${fps}fps_${Math.round(dur)}s_${W}x${H}.${out.ext}`;
       downloadBlob(out.blob, fname);
       exportDone(fname, out.blob, fps, frames, dur, W, H, out.method);
     } catch (e) {
-      ui.status.innerHTML = '❌ Export failed: ' + e.message;
+      ui.status.innerHTML = 'Export failed: ' + e.message;
       ui.btnExport.disabled = false;
       const eta = $('eta');
       if (eta) eta.hidden = true;
