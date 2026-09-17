@@ -267,6 +267,7 @@
     }
   }
   function expHide() {
+    ui.prog.hidden = true;
     ui.prog.value = 100;
     const eta = $('eta');
     if (eta) eta.hidden = true;
@@ -275,7 +276,10 @@
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = fname;
+    // Firefox ignores click() on a detached anchor: attach first.
+    document.body.appendChild(a);
     a.click();
+    a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 60e3);
   }
 
@@ -374,6 +378,7 @@
     } catch (e) {
       ui.status.innerHTML = 'Export failed: ' + e.message;
       ui.btnExport.disabled = false;
+      ui.prog.hidden = true;
       const eta = $('eta');
       if (eta) eta.hidden = true;
     }
@@ -432,7 +437,9 @@
     const a = document.createElement('a');
     a.download = `timer_frame${state.cur}.png`;
     a.href = cv.toDataURL('image/png');
+    document.body.appendChild(a);
     a.click();
+    a.remove();
   });
 
   refresh();

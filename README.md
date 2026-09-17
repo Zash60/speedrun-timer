@@ -46,3 +46,5 @@ Everything runs locally in the browser. No uploads, no accounts.
 - `index.html`, `style.css`, `app.js` — the app
 - `timer-core.js` — frame math (quantization, formatting, duration parsing)
 - `export-mp4.js`, `mp4-muxer.mjs` — offline H.264 encoding + MP4 muxing
+- `receiver.cjs` — optional local upload endpoint (`POST /upload` on port
+  8099, `x-filename` header) for automation; not used by the app itself

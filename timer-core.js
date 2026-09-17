@@ -55,12 +55,16 @@
   // Accepts: "90", "90.5", "1:30", "01:30.250", "1:02:03.5"
   function parseDuration(input) {
     if (typeof input === 'number') {
-      if (!isFinite(input) || input < 0) throw new Error('invalid duration');
+      if (!isFinite(input) || !(input > 0)) throw new Error('duration must be > 0');
       return input;
     }
     const str = String(input || '').trim().replace(',', '.');
     if (!str) throw new Error('empty duration');
-    if (/^\d+(\.\d+)?$/.test(str)) return parseFloat(str);
+    if (/^\d+(\.\d+)?$/.test(str)) {
+      const v = parseFloat(str);
+      if (!(v > 0)) throw new Error('duration must be > 0');
+      return v;
+    }
     const parts = str.split(':');
     if (parts.length > 3) throw new Error('use H:MM:SS.mmm');
     let sec = 0;
@@ -78,10 +82,6 @@
     return sec;
   }
 
-  function frameDurationMs(fps) {
-    return 1000 / fps;
-  }
-
   // Microsecond timestamps for offline encoding (WebCodecs/MP4).
   // Absolute (no accumulated drift): ts(f) = round(f * 1e6 / fps).
   function frameTimestampUs(frame, fps) {
@@ -92,18 +92,5 @@
     return Math.round(1e6 / fps);
   }
 
-  // Retime (somewes-style): video frames at videoFps -> console frames/time.
-  // consoleFrames = floor(videoTime / consoleFrameDuration).
-  function retime(startFrame, endFrame, videoFps, consoleFps) {
-    if (!(videoFps > 0)) throw new Error('video FPS must be > 0');
-    if (!(consoleFps > 0)) throw new Error('console FPS must be > 0');
-    const vf = Math.max(0, Math.floor(endFrame) - Math.floor(startFrame));
-    const videoTime = vf / videoFps;
-    const cfd = 1 / consoleFps;
-    const cfFloat = videoTime / cfd;
-    const cf = Math.floor(cfFloat + 1e-9);
-    return { videoFrames: vf, videoTime, consoleFramesFloat: cfFloat, consoleFrames: cf, consoleTime: cf * cfd };
-  }
-
-  return { totalFrames, frameToMs, formatMs, frameToText, parseDuration, frameDurationMs, frameTimestampUs, frameDurationUs, retime };
+  return { totalFrames, frameToMs, formatMs, frameToText, parseDuration, frameTimestampUs, frameDurationUs };
 });
